@@ -11,12 +11,13 @@
 * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 *
 * See the Mulan PSL v2 for more details.
+*记录和判断模拟器主控的运行（终止）状态
 ***************************************************************************************/
 
 #include <utils.h>
 
 NEMUState nemu_state = { .state = NEMU_STOP };
-
+//判断模拟器退出状态是否“异常”**的函数，给操作系统返回退出码用。
 int is_exit_status_bad() {
   int good = (nemu_state.state == NEMU_END && nemu_state.halt_ret == 0) ||
     (nemu_state.state == NEMU_QUIT);

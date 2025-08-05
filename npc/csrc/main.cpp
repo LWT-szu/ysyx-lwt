@@ -1,50 +1,69 @@
-//#include <stdio.h>
-//int main() {
-//  printf("Hello, ysyx!\n");
-//  return 0;
-//}
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-
+#include <nvboard.h>
 #include "Vtop.h"
 #include "verilated.h"
-
 #include "verilated_vcd_c.h"
 
-int main(int argc, char **argv, char **env)
-{
-    VerilatedContext *contextp = new VerilatedContext;
-    contextp->commandArgs(argc, argv);
-    contextp->traceEverOn(true); // 打开追踪功能
 
-    Vtop *top = new Vtop{contextp};
+void nvboard_bind_all_pins(Vtop* top);
 
-    VerilatedVcdC *tfp = new VerilatedVcdC; // 初始化VCD对象指针
-              
-    top->trace(tfp, 99);
-    tfp->open("wave.vcd"); // 设置输出的文件wave.vcd
+//#define WAVE
 
-    for (int i = 0; i < 10; i++)
+int main(int argc, char** argv) {
+
+    VerilatedContext *contextp = new VerilatedContext; 
+#ifdef WAVE
+    contextp->traceEverOn(true); 
+#endif
+    contextp->commandArgs(argc, argv);  
+
+ 
+    Vtop* top = new Vtop{contextp};
+
+    nvboard_bind_all_pins(top);  
+    nvboard_init();             
+  
+#ifdef WAVE
+    VerilatedVcdC* m_trace = new VerilatedVcdC;  
+    top->trace(m_trace, 99);                    
+    m_trace->open("wave.vcd");                   
+#endif
+    
+    top->resetn = 0;    
+    top->clk =0;
+
+    int reset_cycles = 10; 
+    while (reset_cycles-- > 0)
     {
-        int a = rand() & 1;
-        int b = rand() & 1;
-        top->a = a;
-        top->b = b;
-        top->eval();
-        printf("a = %d, b = %d, f = %d\n", a, b, top->f);
-
-        tfp->dump(contextp->time()); // dump wave
-        contextp->timeInc(1);// 推动仿真时间
-
-        assert(top->f == (a ^ b));
+        
+        top->clk = !top->clk;
+        top->eval(); 
+        contextp->timeInc(1);
     }
-    //			$finish;
-    //		}
-    delete top;
-    tfp->close();
-    delete contextp;
-    delete tfp;
+    top->resetn = 1; 
+    
+    while (!contextp->gotFinish()) {
+        top->clk = !top->clk;
+        nvboard_update();
+        contextp->timeInc(1);
+    	top->eval();
+#ifdef WAVE
+       
+        m_trace->dump(contextp->time()); // 当前仿真时间下所有信号的值
+#endif	
+    }
+
+    
+#ifdef WAVE
+    m_trace->close();    
+    delete m_trace;      
+#endif
+    delete top;          
+    delete contextp;    
+    nvboard_quit();      
+
     return 0;
 }
+    

@@ -11,6 +11,7 @@
 * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 *
 * See the Mulan PSL v2 for more details.
+* 适配不同 RISC-V 配置（如 RV32/RV64、RVE 扩展）
 ***************************************************************************************/
 
 #ifndef __RISCV_REG_H__
@@ -24,7 +25,9 @@ static inline int check_reg_idx(int idx) {
 }
 
 #define gpr(idx) (cpu.gpr[check_reg_idx(idx)])
+//定义了 gpr(idx) 宏来访问寄存器
 
+// 用途：调试时打印寄存器名称（如 isa_reg_display 函数中会用到）
 static inline const char* reg_name(int idx) {
   extern const char* regs[];
   return regs[check_reg_idx(idx)];

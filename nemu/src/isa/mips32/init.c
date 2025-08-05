@@ -24,7 +24,7 @@ static const uint32_t img [] = {
   0x8c820000,  // lw  v0,0(a0)
   0x7000003f,  // sdbbp (used as nemu_trap)
 };
-
+//重置CPU的PC和zero寄存器，准备从RESET_VECTOR处开始执行
 static void restart() {
   /* Set the initial program counter. */
   cpu.pc = RESET_VECTOR;

@@ -15,7 +15,7 @@
 
 #include <common.h>
 
-void init_monitor(int, char *[]);
+void init_monitor(int, char *[]);//和monitor相关的初始化内容
 void am_init_monitor();
 void engine_start();
 int is_exit_status_bad();

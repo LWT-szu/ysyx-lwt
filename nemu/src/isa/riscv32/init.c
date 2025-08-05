@@ -35,7 +35,7 @@ static void restart() {
 }
 
 void init_isa() {
-  /* Load built-in image. */
+  /* Load built-in image.加载系统镜像到指定内存位置并启动虚拟计算机系统 */
   memcpy(guest_to_host(RESET_VECTOR), img, sizeof(img));
 
   /* Initialize this virtual computer system. */

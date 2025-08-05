@@ -32,14 +32,23 @@ static bool g_print_step = false;
 
 void device_update();
 
+// 执行过程中的调试跟踪和差异测试
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
+//若开启指令跟踪（CONFIG_ITRACE_COND），则输出指令日志到日志系统
 #ifdef CONFIG_ITRACE_COND
   if (ITRACE_COND) { log_write("%s\n", _this->logbuf); }
 #endif
+  // 若开启单步打印（g_print_step），则将指令信息打印到屏幕
   if (g_print_step) { IFDEF(CONFIG_ITRACE, puts(_this->logbuf)); }
+  //若开启差异测试（CONFIG_DIFFTEST），则调用差异测试模块验证当前执行步骤（对比模拟器与真实 CPU 的状态差异）
   IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
-}
 
+//new add
+#ifdef CONFIG_WATCHPOINT
+  extern void check_watchpoints();
+  check_watchpoints();
+#endif
+}
 static void exec_once(Decode *s, vaddr_t pc) {
   s->pc = pc;
   s->snpc = pc;
@@ -71,6 +80,7 @@ static void exec_once(Decode *s, vaddr_t pc) {
 #endif
 }
 
+// 在主循环的基础上,模拟不断执行指令
 static void execute(uint64_t n) {
   Decode s;
   for (;n > 0; n --) {
@@ -96,7 +106,7 @@ void assert_fail_msg() {
   statistic();
 }
 
-/* Simulate how the CPU works. */
+/* Simulate how the CPU works. 模拟cpu运行的主循环,然后调用execute*/
 void cpu_exec(uint64_t n) {
   g_print_step = (n < MAX_INST_TO_PRINT);
   switch (nemu_state.state) {

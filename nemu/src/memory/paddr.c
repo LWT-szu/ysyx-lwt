@@ -24,6 +24,8 @@ static uint8_t *pmem = NULL;
 static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
 #endif
 
+// 将来CPU访问内存时, 我们会将CPU将要访问的内存地址映射到pmem中的相应偏移位置->guest_to_host()函数实现
+// 例如如果mips32的CPU打算访问内存地址0x80000000, 我们会让它最终访问pmem[0]
 uint8_t* guest_to_host(paddr_t paddr) { return pmem + paddr - CONFIG_MBASE; }
 paddr_t host_to_guest(uint8_t *haddr) { return haddr - pmem + CONFIG_MBASE; }
 
@@ -41,12 +43,14 @@ static void out_of_bound(paddr_t addr) {
       addr, PMEM_LEFT, PMEM_RIGHT, cpu.pc);
 }
 
+// 这个函数是模拟器/虚拟机中初始化物理内存的核心函数，通过条件编译支持不同的内存初始化策略，同时提供了内存分配和状态日志功能。
 void init_mem() {
 #if   defined(CONFIG_PMEM_MALLOC)
   pmem = malloc(CONFIG_MSIZE);
   assert(pmem);
 #endif
   IFDEF(CONFIG_MEM_RANDOM, memset(pmem, rand(), CONFIG_MSIZE));
+  //就会用 memset 把 pmem 区域所有字节都填为一个随机值（rand() 的低8位）。
   Log("physical memory area [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
 }
 

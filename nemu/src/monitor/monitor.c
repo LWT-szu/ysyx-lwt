@@ -11,6 +11,7 @@
 * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 *
 * See the Mulan PSL v2 for more details.
+启动初始化 & 环境准备
 ***************************************************************************************/
 
 #include <isa.h>
@@ -32,8 +33,8 @@ static void welcome() {
   Log("Build time: %s, %s", __TIME__, __DATE__);
   printf("Welcome to %s-NEMU!\n", ANSI_FMT(str(__GUEST_ISA__), ANSI_FG_YELLOW ANSI_BG_RED));
   printf("For help, type \"help\"\n");
-  Log("Exercise: Please remove me in the source code and compile NEMU again.");
-  assert(0);
+ // Log("Exercise: Please remove me in the source code and compile NEMU again.");
+ // assert(0);
 }
 
 #ifndef CONFIG_TARGET_AM
@@ -67,7 +68,7 @@ static long load_img() {
   fclose(fp);
   return size;
 }
-
+//定义支持的命令行参数格式
 static int parse_args(int argc, char *argv[]) {
   const struct option table[] = {
     {"batch"    , no_argument      , NULL, 'b'},
@@ -77,13 +78,16 @@ static int parse_args(int argc, char *argv[]) {
     {"help"     , no_argument      , NULL, 'h'},
     {0          , 0                , NULL,  0 },
   };
+  //"-bhl:d:p:"：短选项字符串，: 表示需要参数。table：长选项定义表
+  //每个短选项参赛对应的功能
+  //开头的 -：这是一个特殊标记，告诉 getopt_long 允许 -lfile 这种 无空格紧凑写法（兼容传统 Unix 工具风格）
   int o;
   while ( (o = getopt_long(argc, argv, "-bhl:d:p:", table, NULL)) != -1) {
     switch (o) {
       case 'b': sdb_set_batch_mode(); break;
       case 'p': sscanf(optarg, "%d", &difftest_port); break;
       case 'l': log_file = optarg; break;
-      case 'd': diff_so_file = optarg; break;
+      case 'd': diff_so_file = optarg; break;//差分测试动态库
       case 1: img_file = optarg; return 0;
       default:
         printf("Usage: %s [OPTION...] IMAGE [args]\n\n", argv[0]);
@@ -99,22 +103,22 @@ static int parse_args(int argc, char *argv[]) {
 }
 
 void init_monitor(int argc, char *argv[]) {
-  /* Perform some global initialization. */
+  /* Perform some global initialization.初始化工作 */
 
   /* Parse arguments. */
-  parse_args(argc, argv);
+  parse_args(argc, argv);//解析命令行参数,处理传入的参数
 
   /* Set random seed. */
-  init_rand();
+  init_rand();//初始随机数
 
-  /* Open the log file. */
+  /* Open the log file.初始化日志系统，打开日志文件 */
   init_log(log_file);
 
-  /* Initialize memory. */
+  /* Initialize memory.初始化内存系统 */
   init_mem();
 
-  /* Initialize devices. */
-  IFDEF(CONFIG_DEVICE, init_device());
+  /* Initialize devices.如果启用设备配置（CONFIG_DEVICE=y），初始化外设（如时钟、键盘、串口） */
+  IFDEF(CONFIG_DEVICE, init_device());//条件编译
 
   /* Perform ISA dependent initialization. */
   init_isa();
@@ -122,10 +126,10 @@ void init_monitor(int argc, char *argv[]) {
   /* Load the image to memory. This will overwrite the built-in image. */
   long img_size = load_img();
 
-  /* Initialize differential testing. */
+  /* Initialize differential testing.初始化反汇编器，用于动态打印指令。 */
   init_difftest(diff_so_file, img_size, difftest_port);
 
-  /* Initialize the simple debugger. */
+  /* Initialize the simple debugger.初始化简易调试器 */
   init_sdb();
 
   IFDEF(CONFIG_ITRACE, init_disasm());
