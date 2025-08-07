@@ -42,10 +42,10 @@ static void decode_operand(Decode *s, int *rd_, word_t *src1, word_t *src2, word
     default: panic("Unsupport type = %d", type);
   }
 }
-
+// 对指令进行译码，并执行对应操作。
 static int decode_exec(Decode *s) {
-  s->dnpc = s->snpc;
-
+  s->dnpc = s->snpc; // 是初始化，保证流程默认是顺序执行。
+                     // 如果遇到需要跳转的指令，再去覆盖dnpc。
 #define INSTPAT_INST(s) ((s)->isa.inst)
 #define INSTPAT_MATCH(s, name, type, ... /* execute body */ ) { \
   int rd = 0; \
@@ -70,5 +70,5 @@ static int decode_exec(Decode *s) {
 
 int isa_exec_once(Decode *s) {
   s->isa.inst = inst_fetch(&s->snpc, 4);
-  return decode_exec(s);
+  return decode_exec(s);//进行指令译码和执行
 }

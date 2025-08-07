@@ -11,6 +11,7 @@
 * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 *
 * See the Mulan PSL v2 for more details.
+* 差异测试功能的声明入口,方便地在主循环或指令执行流程中调用差异测试相关接口，实现自动化的错误检测和调试
 ***************************************************************************************/
 
 #ifndef __CPU_DIFFTEST_H__
@@ -23,7 +24,7 @@
 void difftest_skip_ref();
 void difftest_skip_dut(int nr_ref, int nr_dut);
 void difftest_set_patch(void (*fn)(void *arg), void *arg);
-void difftest_step(vaddr_t pc, vaddr_t npc);
+void difftest_step(vaddr_t pc, vaddr_t npc); // 执行一次差异测试，比对当前 PC 下的状态。
 void difftest_detach();
 void difftest_attach();
 #else
@@ -40,6 +41,7 @@ extern void (*ref_difftest_regcpy)(void *dut, bool direction);
 extern void (*ref_difftest_exec)(uint64_t n);
 extern void (*ref_difftest_raise_intr)(uint64_t NO);
 
+// 用于在指令执行后比对某个寄存器的值，发现不一致就输出日志，便于定位问题
 static inline bool difftest_check_reg(const char *name, vaddr_t pc, word_t ref, word_t dut) {
   if (ref != dut) {
     Log("%s is different after executing instruction at pc = " FMT_WORD

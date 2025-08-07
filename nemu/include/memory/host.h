@@ -17,12 +17,13 @@
 #define __MEMORY_HOST_H__
 
 #include <common.h>
-
+// 数组peme的解引用
+//  按要求的字节数，从给定的内存地址上“取出数据”并返回
 static inline word_t host_read(void *addr, int len) {
   switch (len) {
     case 1: return *(uint8_t  *)addr;
     case 2: return *(uint16_t *)addr;
-    case 4: return *(uint32_t *)addr;
+    case 4: return *(uint32_t *)addr;//转成 uint32_t*（指向4字节单元）。解引用后，读出4字节（32位）数据。
     IFDEF(CONFIG_ISA64, case 8: return *(uint64_t *)addr);
     default: MUXDEF(CONFIG_RT_CHECK, assert(0), return 0);
   }

@@ -32,7 +32,7 @@ static bool g_print_step = false;
 
 void device_update();
 
-// 执行过程中的调试跟踪和差异测试
+// 执行过程中的调试跟踪和差异测试,调试、验证和定位错误
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 //若开启指令跟踪（CONFIG_ITRACE_COND），则输出指令日志到日志系统
 #ifdef CONFIG_ITRACE_COND
@@ -40,26 +40,31 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #endif
   // 若开启单步打印（g_print_step），则将指令信息打印到屏幕
   if (g_print_step) { IFDEF(CONFIG_ITRACE, puts(_this->logbuf)); }
-  //若开启差异测试（CONFIG_DIFFTEST），则调用差异测试模块验证当前执行步骤（对比模拟器与真实 CPU 的状态差异）
+  //若开启差异测试（CONFIG_DIFFTEST），则调用差异测试模块验证当前执行步骤
+  //（对比参考模型与真实 CPU 的状态[寄存器、内存]差异）
   IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
 
 //new add
 #ifdef CONFIG_WATCHPOINT
-  extern void check_watchpoints();
+  extern void check_watchpoints(); // 监视点检测是否发生变化
   check_watchpoints();
 #endif
 }
+
+//执行一条指令
 static void exec_once(Decode *s, vaddr_t pc) {
-  s->pc = pc;
-  s->snpc = pc;
-  isa_exec_once(s);
-  cpu.pc = s->dnpc;
+  // s保存当前指令的解码及执行相关信息
+  s->pc = pc; // 当前指令的PC
+  s->snpc = pc; // 下一条指令的PC
+  isa_exec_once(s); // 真正执行指令的地方,解码并执行一条指令
+  cpu.pc = s->dnpc; // 将dnpc赋值给全局的cpu的pc
 #ifdef CONFIG_ITRACE
   char *p = s->logbuf;
   p += snprintf(p, sizeof(s->logbuf), FMT_WORD ":", s->pc);
   int ilen = s->snpc - s->pc;
   int i;
   uint8_t *inst = (uint8_t *)&s->isa.inst;
+  // 输出指令的机器码
 #ifdef CONFIG_ISA_x86
   for (i = 0; i < ilen; i ++) {
 #else
@@ -67,6 +72,8 @@ static void exec_once(Decode *s, vaddr_t pc) {
 #endif
     p += snprintf(p, 4, " %02x", inst[i]);
   }
+
+  // 对齐和美化输出
   int ilen_max = MUXDEF(CONFIG_ISA_x86, 8, 4);
   int space_len = ilen_max - ilen;
   if (space_len < 0) space_len = 0;
@@ -74,6 +81,7 @@ static void exec_once(Decode *s, vaddr_t pc) {
   memset(p, ' ', space_len);
   p += space_len;
 
+  // 对机器码进行反汇编，生成汇编语言的字符串描述，追加到日志
   void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
   disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
       MUXDEF(CONFIG_ISA_x86, s->snpc, s->pc), (uint8_t *)&s->isa.inst, ilen);
@@ -106,7 +114,8 @@ void assert_fail_msg() {
   statistic();
 }
 
-/* Simulate how the CPU works. 模拟cpu运行的主循环,然后调用execute*/
+/* Simulate how the CPU works. 模拟cpu运行的主循环,然后调用execute
+控制 CPU 执行指令的主入口函数*/
 void cpu_exec(uint64_t n) {
   g_print_step = (n < MAX_INST_TO_PRINT);
   switch (nemu_state.state) {
@@ -119,7 +128,7 @@ void cpu_exec(uint64_t n) {
   uint64_t timer_start = get_time();
 
   execute(n);
-
+  //遇到结束/中止，输出日志，说明程序是正常结束还是异常结束，并统计仿真信息（如执行指令数、耗时等）。
   uint64_t timer_end = get_time();
   g_timer += timer_end - timer_start;
 

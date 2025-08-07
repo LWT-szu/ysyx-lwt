@@ -28,8 +28,9 @@ typedef struct Decode {
 
 // --- pattern matching mechanism ---
 __attribute__((always_inline))
+// 模板字符串转换成 key、mask(掩码决定哪些位要参与指令匹配，哪些位随意)、shift(对齐)，方便高效地做二进制模式匹配
 static inline void pattern_decode(const char *str, int len,
-    uint64_t *key, uint64_t *mask, uint64_t *shift) {
+  uint64_t *key, uint64_t *mask, uint64_t *shift){
   uint64_t __key = 0, __mask = 0, __shift = 0;
 #define macro(i) \
   if ((i) >= len) goto finish; \
@@ -87,6 +88,7 @@ finish:
 
 
 // --- pattern matching wrappers for decode ---
+//用字符串模板（类似汇编格式）来描述一条指令的机器码格式，并自动解析和执行对应的代码
 #define INSTPAT(pattern, ...) do { \
   uint64_t key, mask, shift; \
   pattern_decode(pattern, STRLEN(pattern), &key, &mask, &shift); \
@@ -95,6 +97,10 @@ finish:
     goto *(__instpat_end); \
   } \
 } while (0)
+// goto语句将会跳转到最后的__instpat_end_标签
+//   INSTPAT_INST(s) 返回当前解码的指令机器码
+//  if ((((uint64_t)INSTPAT_INST(s) >> shift) & mask) == key)用掩码和key判断当前指令机器码是否和指令模板匹配
+//   INSTPAT_MATCH匹配成功后，解析操作数并执行你定义的操作
 
 #define INSTPAT_START(name) { const void * __instpat_end = &&concat(__instpat_end_, name);
 #define INSTPAT_END(name)   concat(__instpat_end_, name): ; }
