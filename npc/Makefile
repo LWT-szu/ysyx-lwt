@@ -30,22 +30,23 @@ VERILATOR = verilator
 VERILATOR_CFLAGS += -MMD --build --trace -cc -O3 --x-assign fast --x-initial fast --noassert
 
 # 文件路径
-VSRCS = $(shell find $(abspath ./vsrc) -name "*.v")
+VSRCS = $(shell find $(abspath ./vsrc) -name "*.v") $(abspath ./vsrc/IDU.sv)
 CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp")
-SRC_AUTO_BIND = $(abspath $(BUILD_DIR)/auto_bind.cpp)
+
+#SRC_AUTO_BIND = $(abspath $(BUILD_DIR)/auto_bind.cpp)
 
 # NVBoard配置
-include $(NVBOARD_HOME)/scripts/nvboard.mk
+#include $(NVBOARD_HOME)/scripts/nvboard.mk
 
 # 生成自动绑定文件
-$(SRC_AUTO_BIND): $(NXDC_FILES)
-	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
+#$(SRC_AUTO_BIND): $(NXDC_FILES)
+#	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
 
 # 编译规则
-CSRCS += $(SRC_AUTO_BIND)
+#CSRCS += $(SRC_AUTO_BIND)
 INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
-LDFLAGS += -lSDL2 -lSDL2_image
+#LDFLAGS += -lSDL2 -lSDL2_image
 
 # 主要构建目标
 $(shell mkdir -p $(BUILD_DIR))
@@ -60,13 +61,20 @@ $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 # 兼容旧Makefile的目标
 sim: $(BIN)
 	$(call git_commit, "sim RTL")
-	./$(BIN) +trace
+	./$(BIN) $(IMAGE) +trace
 
 # 其他目标
 all: $(BIN)
 
 run: $(BIN)
-	./$(BIN) +trace
+##	./$(BIN) sum.bin +trace
+	@if [ -z "$(IMAGE)" ]; then \
+		echo "Error: 请通过 'IMAGE=xxx.bin' 指定镜像文件路径new"; \
+		exit 1; \
+	fi
+	./$(BIN) $(IMAGE) +trace  
+# 运行指定的镜像
+
 
 clean:
 	rm -rf $(BUILD_DIR) wave.vcd obj_dir

@@ -14,6 +14,9 @@
 # define nemu_trap(code) asm volatile("mv a0, %0; ebreak" : :"r"(code))
 #elif defined(__ISA_LOONGARCH32R__)
 # define nemu_trap(code) asm volatile("move $a0, %0; break 0" : :"r"(code))
+// 把 code 放进 a0 然后执行 ebreak；“退出”是模拟器约定对 ebreak 的特殊处理，
+// 看到它就读取 a0 当退出码并结束运行
+// 退出的逻辑在“仿真/硬件侧”完成。名字随便叫，nemu_trap、npc_trap、_halt 都行
 #else
 # error unsupported ISA __ISA__
 #endif
