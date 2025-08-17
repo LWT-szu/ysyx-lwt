@@ -1,5 +1,8 @@
 # Makefile for AbstractMachine Kernels and Libraries
-
+#这是整个 Abstract Machine 项目的“顶级构建规则”。
+#负责环境检查，变量展开，目标编译、链接、归档、递归构建依赖库等。
+#通过 -include $(AM_HOME)/scripts/$(ARCH).mk，自动加载体系结构/平台专项配置（比如 riscv32-nemu.mk）。
+#定义了从 .c/.S 到 .o、从 .o 到 .elf、再到二进制镜像（image）的全套规则。
 ### *Get a more readable version of this Makefile* by `make html` (requires python-markdown)
 html:
 	cat Makefile | sed 's/^\([^#]\)/    \1/g' | markdown_py > Makefile.html

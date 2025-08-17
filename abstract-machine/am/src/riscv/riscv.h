@@ -3,12 +3,18 @@
 
 #include <stdint.h>
 
+// 从指定地址读一个字节（8位）,读取串口状态寄存器
 static inline uint8_t  inb(uintptr_t addr) { return *(volatile uint8_t  *)addr; }
+// 读16位
 static inline uint16_t inw(uintptr_t addr) { return *(volatile uint16_t *)addr; }
+// 读32位
 static inline uint32_t inl(uintptr_t addr) { return *(volatile uint32_t *)addr; }
 
+// 把一个字节（8位）写到物理地址 addr，通常用来写设备寄存器
 static inline void outb(uintptr_t addr, uint8_t  data) { *(volatile uint8_t  *)addr = data; }
+// 写一个16位数据到指定地址
 static inline void outw(uintptr_t addr, uint16_t data) { *(volatile uint16_t *)addr = data; }
+// 写一个32位数据到指定地址
 static inline void outl(uintptr_t addr, uint32_t data) { *(volatile uint32_t *)addr = data; }
 
 #define PTE_V 0x01

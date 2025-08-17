@@ -38,6 +38,8 @@ static uint64_t get_time_internal() {
   return us;
 }
 
+// get_time()又调用库函数来获取时间，然后把获取的时间返回rtc_io_handler()，
+//并复制给rtc寄存器，也就是MMIO空间
 uint64_t get_time() {
   if (boot_time == 0) boot_time = get_time_internal();
   uint64_t now = get_time_internal();

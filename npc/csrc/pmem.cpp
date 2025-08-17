@@ -1,0 +1,98 @@
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#define PMEM_BASE 0x80000000u
+#define MEM_SIZE (1 << 24)
+uint32_t pmem[MEM_SIZE];
+
+// 可以用PC和ALU计算的结果来来访问lw,lbu
+extern "C" int pmem_read(int raddr,int pc)
+{
+    if (raddr < PMEM_BASE)
+    {
+        printf("Error: below base raddr=0x%08x base=0x%08x pc=0x%08x\n", raddr, PMEM_BASE, pc);
+    }
+    uint32_t off = raddr - PMEM_BASE;
+    uint32_t idx = (off & ~0x3u) >> 2;
+    if (idx >= MEM_SIZE)
+    {
+        printf("Error: pmem_read access out of range! raddr=0x%x idx=%d\n", raddr, idx);
+        exit(1);
+    }
+    return pmem[(off & ~0x3u) >> 2]; // 4 字节对齐的地址
+}
+
+/*waddr：写入内存的地址（字节地址，可能不是4字节对齐）
+wdata：写入的数据（32位整数）
+wmask：写掩码（4位，每位对应一个字节，1表示需要写，0表示不写）*/
+
+// 实现了按字节写存储器的功能sw（写全部4字节）、sb（只写1字节）
+// ALU算出的有效地址
+extern "C" void pmem_write(int waddr, int wdata, char wmask)
+{
+    uint32_t addr = (uint32_t)waddr - PMEM_BASE;
+    uint32_t idx = (addr & ~0x3u) >> 2; // 地址变成4字节对齐
+    if (idx >= MEM_SIZE)
+    {
+        printf("Error: pmem_write access out of range! waddr=0x%x idx=%d\n", waddr, idx);
+        exit(1);
+    }
+    for (int i = 0; i < 4; i++)     // 遍历4个字节
+    {
+        if (wmask & (1 << i))       // 每一位代表当前字节是否需要写,若 wmask 的第 i 位是1，则写入该字节，否则保留原值。
+        {
+            //((uint8_t *) &pmem[idx] ) [i] = (wmask == 0xF) ? ((wdata >> (i*8)) & 0xFF) : (wdata & 0xFF);
+            ((uint8_t *)&pmem[idx])[i] = (wdata >> (i * 8)) & 0xFF;
+        }
+    }
+}
+/*(1 << i)得到一个只有第 i 位是 1 的二进制数
+(uint8_t *)&pmem[idx]：把 pmem[idx] 的地址强转为字节指针，可以按字节访问一个32位整数的内容
+&pmem[idx] 得到的是这个元素在内存中的地址（指向一个32位整型）
+[i]：表示第 i 个字节。
+
+把这个地址（本来是 uint32_t* 类型）强制转换为 uint8_t* 类型。
+意思就是把它当成一个“字节指针”，指向这个元素的第一个字节。
+这样就可以用 [0]、[1]、[2]、[3] 来分别访问这个32位整数的每一个字节
+
+(wdata >> (i * 8)) & 0xFF：把要写的数据右移 i*8 位，提取第 i 个字节，然后与0xFF做位掩码只保留低8位
+作用：将 wdata 的第 i 个字节写到 pmem[idx] 的第 i 个字节（如果 wmask 允许）*/
+
+void pmem_init(const char *filename)
+{
+    FILE *fp = fopen(filename, "rb");
+    if (!fp)
+    {
+        perror("open bin file");
+        exit(1);
+    }
+    // 把文件内容读到 pmem
+    size_t n = fread(pmem, 1, MEM_SIZE * sizeof(uint32_t), fp);
+    printf("Loaded %zu bytes from %s\n", n, filename);
+    fclose(fp);
+}
+
+/*十六进制
+void pmem_init(const char *filename)
+{
+    FILE *fp = fopen(filename, "r");
+    if (!fp)
+    {
+        perror("open mem.hex");
+        exit(1);
+    }
+    int idx = 0;
+    uint32_t inst;
+    while (fscanf(fp, "%x", &inst) == 1)
+    {
+        if (idx >= MEM_SIZE)
+        {
+            printf("Error: mem.hex too large! idx=%d\n", idx);
+            exit(1);
+        }
+        pmem[idx++] = inst;
+    }
+    printf("Loaded %d instructions from %s\n", idx, filename);
+    fclose(fp);
+}
+*/

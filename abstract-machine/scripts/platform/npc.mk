@@ -25,7 +25,9 @@ image: image-dep
 	@echo + OBJCOPY "->" $(IMAGE_REL).bin
 	@$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin
 
+#这里我不知道怎么加，不知道写啥
+NPC_BIN ?= /home/lwt/ysyx-workbench/npc/build/top
 run: insert-arg
-	echo "TODO: add command here to run simulation"
-
+	$(NPC_BIN) $(IMAGE).bin
+#传递程序镜像
 .PHONY: insert-arg

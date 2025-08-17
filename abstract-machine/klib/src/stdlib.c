@@ -29,17 +29,33 @@ int atoi(const char* nptr) {
   return x;
 }
 
+extern Area heap; // 表示可用堆区的地址范围
+
+static uintptr_t curr = 0; // 当前分配指针（uintptr_t: 无符号指针整数表示）
+static uintptr_t end = 0;  // 结束地址缓存（减少取结构体开销）
+
 void *malloc(size_t size) {
   // On native, malloc() will be called during initializaion of C runtime.
   // Therefore do not call panic() here, else it will yield a dead recursion:
   //   panic() -> putchar() -> (glibc) -> malloc() -> panic()
 #if !(defined(__ISA_NATIVE__) && defined(__NATIVE_USE_KLIB__))
-  panic("Not implemented");
+  if(size == 0) return NULL;//第一次调用 malloc() 时初始化 curr/end
+
+  if(curr == 0){
+    curr = (uintptr_t)heap.start;
+    end = (uintptr_t)heap.end;
+  }
+
+  size = (size + 7) & ~((size_t)7);
+  void *ret = (void *)curr;
+  curr += size;
+  return ret;
 #endif
   return NULL;
 }
 
 void free(void *ptr) {
+  (void)ptr;
 }
 
 #endif

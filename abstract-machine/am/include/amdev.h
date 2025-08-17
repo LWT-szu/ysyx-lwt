@@ -1,8 +1,11 @@
 #ifndef __AMDEV_H__
 #define __AMDEV_H__
-
+// 在不同的架构中, 同一个功能编号的含义也是相同的, 这样就实现了设备寄存器的抽象
+// 定义了常见设备的"抽象寄存器"编号和相应的结构
 // **MAY SUBJECT TO CHANGE IN THE FUTURE**
 
+// 为每个设备寄存器定义一个 唯一编号（ID） 和对应的 数据结构
+// AM_##reg 访问寄存器编号,AM_##reg##_T 类型操作寄存器数据
 #define AM_DEVREG(id, reg, perm, ...) \
   enum { AM_##reg = (id) }; \
   typedef struct { __VA_ARGS__; } AM_##reg##_T;
