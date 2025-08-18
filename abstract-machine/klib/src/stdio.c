@@ -5,186 +5,59 @@
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 
-/*
- * 支持的格式:
- *   %s
- *   %d  (有符号十进制)
- *   %u  (无符号十进制)
- *   %x  (无符号十六进制, 小写)
- *   %0[width]x  例如 %02x/%04x/%08x  -> 零填充到指定宽度
- *   %[width]x   例如 %4x -> 宽度最小为 width, 左侧空格填充
- * 不支持: 其它 flag、长整型、%p、%c 等（可再扩展）
- */
-
-static inline void output_dec_unsigned(unsigned int u, int *count)
-{
-  if (u == 0)
-  {
-    putch('0');
-    (*count)++;
-    return;
-  }
-  char buf[16];
-  int i = 0;
-  while (u)
-  {
-    buf[i++] = '0' + (u % 10);
-    u /= 10;
-  }
-  while (i--)
-  {
-    putch(buf[i]);
-    (*count)++;
-  }
-}
-
 int printf(const char *fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
   int count = 0;
 
-  for (const char *p = fmt; *p;)
+  for (const char *p = fmt; *p; ++p)
   {
     if (*p != '%')
     {
-      putch(*p++);
+      putch(*p);
       count++;
       continue;
     }
-
-    p++; // 跳过 '%'
-    if (!*p)
-      break; // 末尾单独一个 %
-
-    // 解析可选的 flag 和 width（只处理 '0' 填充 和 数字宽度）
-    int zero_pad = 0;
-    int width = 0;
-    if (*p == '0')
-    { // 零填充
-      zero_pad = 1;
-      p++;
-    }
-    // 宽度数字
-    while (*p >= '0' && *p <= '9')
+    // 处理格式符
+    ++p;
+    if (*p == 's')
     {
-      width = width * 10 + (*p - '0');
-      p++;
-    }
-
-    char spec = *p;
-    if (!spec)
-      break;
-    p++; // 消耗格式符
-
-    if (spec == 's')
-    {
-      char *str = va_arg(args, char *);
+      const char *str = va_arg(args, const char *);
       if (!str)
         str = "(null)";
-      int len = 0;
-      for (char *t = str; *t; t++)
-        len++;
-      // 这里未实现右对齐逻辑，若需要可扩展
-      for (int i = 0; i < len; i++)
+      while (*str)
       {
-        putch(str[i]);
+        putch(*str++);
         count++;
       }
     }
-    else if (spec == 'd')
+    else if (*p == 'd')
     {
       int num = va_arg(args, int);
+      // 处理负数
       unsigned int u;
       if (num < 0)
       {
         putch('-');
         count++;
-        u = (unsigned int)(-(long long)num);
+        u = (unsigned int)(-num);
       }
       else
       {
         u = (unsigned int)num;
       }
-      // 先把数转成倒序缓冲
+      // 转字符串逆序暂存
       char buf[16];
       int i = 0;
       if (u == 0)
         buf[i++] = '0';
-      else
+      while (u)
       {
-        while (u)
-        {
-          buf[i++] = '0' + (u % 10);
-          u /= 10;
-        }
+        buf[i++] = '0' + (u % 10);
+        u /= 10;
       }
-      int digits = i;
-      int pad = (width > digits) ? (width - digits) : 0;
-      // %0[width]d 的语义此处未实现，只使用空格（需要可同 hex 一样加 zero_pad 判断）
-      while (pad--)
-      {
-        putch(' ');
-        count++;
-      }
-      while (i--)
-      {
-        putch(buf[i]);
-        count++;
-      }
-    }
-    else if (spec == 'u')
-    {
-      unsigned int u = va_arg(args, unsigned int);
-      char buf[16];
-      int i = 0;
-      if (u == 0)
-        buf[i++] = '0';
-      else
-      {
-        while (u)
-        {
-          buf[i++] = '0' + (u % 10);
-          u /= 10;
-        }
-      }
-      int digits = i;
-      int pad = (width > digits) ? (width - digits) : 0;
-      while (pad--)
-      {
-        putch(zero_pad ? '0' : ' ');
-        count++;
-      }
-      while (i--)
-      {
-        putch(buf[i]);
-        count++;
-      }
-    }
-    else if (spec == 'x')
-    {
-      unsigned int u = va_arg(args, unsigned int);
-      char buf[16];
-      int i = 0;
-      if (u == 0)
-        buf[i++] = '0';
-      else
-      {
-        while (u)
-        {
-          unsigned d = u & 0xf;
-          buf[i++] = (d < 10) ? ('0' + d) : ('a' + (d - 10));
-          u >>= 4;
-        }
-      }
-      int digits = i;
-      // 宽度含义：最小占位位数
-      int pad = (width > digits) ? (width - digits) : 0;
-      while (pad--)
-      {
-        putch(zero_pad ? '0' : ' ');
-        count++;
-      }
+      // 倒序输出
       while (i--)
       {
         putch(buf[i]);
@@ -193,9 +66,9 @@ int printf(const char *fmt, ...)
     }
     else
     {
-      // 未支持的格式，按字面输出
+      // 不支持的格式，原样输出
       putch('%');
-      putch(spec);
+      putch(*p);
       count += 2;
     }
   }
