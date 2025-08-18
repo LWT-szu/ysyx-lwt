@@ -54,7 +54,7 @@ static void key_enqueue(uint32_t am_scancode) {
   key_r = (key_r + 1) % KEY_QUEUE_LEN;
   Assert(key_r != key_f, "key queue overflow!");
 }
-
+// 从键盘事件队列中“弹出”一个键盘码（如果有的话），如果没有按键事件就返回NEMU_KEY_NONE
 static uint32_t key_dequeue() {
   uint32_t key = NEMU_KEY_NONE;
   if (key_f != key_r) {
@@ -79,9 +79,10 @@ static uint32_t key_dequeue() {
   return am_scancode;
 }
 #endif
-
+// “键盘数据寄存器”的内存基址（用4字节模拟一个寄存器，存放键盘码）
 static uint32_t *i8042_data_port_base = NULL;
 
+// 回调函数handler用key_dequeue()取出一个键码，写入“寄存器”内存
 static void i8042_data_io_handler(uint32_t offset, int len, bool is_write) {
   assert(!is_write);
   assert(offset == 0);
@@ -89,7 +90,7 @@ static void i8042_data_io_handler(uint32_t offset, int len, bool is_write) {
 }
 
 void init_i8042() {
-  i8042_data_port_base = (uint32_t *)new_space(4);
+  i8042_data_port_base = (uint32_t *)new_space(4);//分配4字节内存作为“数据寄存器”
   i8042_data_port_base[0] = NEMU_KEY_NONE;
 #ifdef CONFIG_HAS_PORT_IO
   add_pio_map ("keyboard", CONFIG_I8042_DATA_PORT, i8042_data_port_base, 4, i8042_data_io_handler);
