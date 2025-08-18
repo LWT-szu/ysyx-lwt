@@ -35,12 +35,20 @@ module WBU (
   assign wb_wen = reg_en;
   assign wb_rd = waddr;
   
+<<<<<<< HEAD
   assign next_pc = (jalr_en) ? (alu_data & 32'hfffffffe) : (pc + 4);
   /*
   always @(*) begin
+=======
+  always @(posedge clk or posedge rst) begin
+>>>>>>> d34687c96b7473e4c27729b0dcd29d99cb48dda7
     if (rst == 1) next_pc <= 32'h80000000;
     else if(jalr_en == 1) next_pc <= alu_data & 32'hfffffffe;//最低位清零
     else next_pc <= pc + 32'h00000004;
   end
+<<<<<<< HEAD
   */
+=======
+  
+>>>>>>> d34687c96b7473e4c27729b0dcd29d99cb48dda7
 endmodule

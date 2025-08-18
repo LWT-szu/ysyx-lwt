@@ -60,7 +60,11 @@ module top (
   wire [31:0] wb_Rresult;  // 写回数据（WBU -> RegisterFile）
   wire [4:0] wb_rd;        // 写回寄存器号（WBU -> RegisterFile）
 
+<<<<<<< HEAD
   reg [31:0] pc_reg = 32'h80000000;       //保存当前 PC值,实现顺序执行和跳转
+=======
+  reg [31:0] pc_reg;       //保存当前 PC值,实现顺序执行和跳转
+>>>>>>> d34687c96b7473e4c27729b0dcd29d99cb48dda7
   assign pc = pc_reg;      //pc_reg的“输出端口”
 
   //激励文件中寄存器赋值读取
@@ -82,7 +86,11 @@ module top (
   assign a4 = RegisterFile_init.rf[14];//a4
 
   
+<<<<<<< HEAD
   always @(posedge clk or posedge rst) begin
+=======
+  always @(negedge clk or posedge rst) begin
+>>>>>>> d34687c96b7473e4c27729b0dcd29d99cb48dda7
     
     if (rst==1)
         pc_reg <= 32'h80000000;
