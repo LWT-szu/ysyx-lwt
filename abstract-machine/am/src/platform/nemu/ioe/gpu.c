@@ -10,7 +10,7 @@ void __am_gpu_init() {
   int w = gpu_t >> 16;
   int h = gpu_t & 0xFFFF;
   uint32_t *fb = (uint32_t *)(uintptr_t)FB_ADDR;
-  for (i = 0; i < w * h; i++) fb[i] = i;//彩虹条/渐变色效果
+  for (i = 0; i < w * h; i++) fb[i] = 0x0000FFFF;//彩虹条/渐变色效果
   outl(SYNC_ADDR, 1); // 刷新
   
 }
