@@ -13,21 +13,12 @@ module ISU (
     output reg [31:0]rdata_ram
 
 );
-<<<<<<< HEAD
     wire [7:0]wmask;        
     assign wmask = is_sb_type ? (8'b00000001 << waddr_ram[1:0]): 8'b00001111;
     always @(*) begin
         if(valid && !wen_ram)begin
             //$display("pc=0x%08x", pc);
             rdata_ram = pmem_read(raddr_ram,pc);// 有读请求时
-=======
-    wire [7:0]wmask;        // 写掩码
-    assign wmask = is_sb_type ? (8'b00000001 << waddr_ram[1:0]): 8'b00001111;
-    always @(*) begin
-        if(valid && !wen_ram)begin
-           
-            rdata_ram = pmem_read(raddr_ram);// 有读请求时
->>>>>>> d34687c96b7473e4c27729b0dcd29d99cb48dda7
         end
         else begin
             rdata_ram = 0;
@@ -41,9 +32,4 @@ module ISU (
     end
     end
 
-<<<<<<< HEAD
-=======
-    
-    
->>>>>>> d34687c96b7473e4c27729b0dcd29d99cb48dda7
 endmodule

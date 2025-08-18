@@ -6,20 +6,11 @@
 uint32_t pmem[MEM_SIZE];
 
 // 可以用PC和ALU计算的结果来来访问lw,lbu
-<<<<<<< HEAD
 extern "C" int pmem_read(int raddr,int pc)
 {
     if (raddr < PMEM_BASE)
     {
         printf("Error: below base raddr=0x%08x base=0x%08x pc=0x%08x\n", raddr, PMEM_BASE, pc);
-=======
-extern "C" int pmem_read(int raddr)
-{
-    if (raddr < PMEM_BASE)
-    {
-        printf("Error: below base addr=0x%08x base=0x%08x\n", raddr, PMEM_BASE);
-        exit(1);
->>>>>>> d34687c96b7473e4c27729b0dcd29d99cb48dda7
     }
     uint32_t off = raddr - PMEM_BASE;
     uint32_t idx = (off & ~0x3u) >> 2;

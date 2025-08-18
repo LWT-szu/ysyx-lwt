@@ -48,16 +48,10 @@ int main(int argc, char** argv) {
 #endif
     
     top->rst = 1;    
-<<<<<<< HEAD
     top->clk =0;top->eval();contextp->timeInc(1); 
     // 推进仿真时间（通常每执行一次，仿真时间加1）
 
     int rst_cycles = 2; //1
-=======
-    top->clk =0;
-
-    int rst_cycles = 5; //1
->>>>>>> d34687c96b7473e4c27729b0dcd29d99cb48dda7
     while (rst_cycles-- > 0)
     {
 
