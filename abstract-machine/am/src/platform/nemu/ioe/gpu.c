@@ -4,7 +4,7 @@
 #define SYNC_ADDR (VGACTL_ADDR + 4)
 
 void __am_gpu_init() {
-  /*
+  
   uint32_t gpu_t = inl(VGACTL_ADDR);
   int i;
   int w = gpu_t >> 16;
@@ -12,7 +12,7 @@ void __am_gpu_init() {
   uint32_t *fb = (uint32_t *)(uintptr_t)FB_ADDR;
   for (i = 0; i < w * h; i++) fb[i] = i;//彩虹条/渐变色效果
   outl(SYNC_ADDR, 1); // 刷新
-  */
+  
 }
 // 读出屏幕大小信息
 void __am_gpu_config(AM_GPU_CONFIG_T *cfg) {
