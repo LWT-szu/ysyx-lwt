@@ -22,6 +22,7 @@
 #include <memory/vaddr.h>
 #include <device/map.h>
 #include <cpu/cpu.h>
+#include <cpu/decode.h>
 
 #define IO_SPACE_MAX (32 * 1024 * 1024)
 
