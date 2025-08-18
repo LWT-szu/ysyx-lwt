@@ -42,7 +42,7 @@ extern "C" void pmem_write(int waddr, int wdata, char wmask)
         if (wmask & (1 << i))       // 每一位代表当前字节是否需要写,若 wmask 的第 i 位是1，则写入该字节，否则保留原值。
         {
             //((uint8_t *) &pmem[idx] ) [i] = (wmask == 0xF) ? ((wdata >> (i*8)) & 0xFF) : (wdata & 0xFF);
-            ((uint8_t *)&pmem[idx])[i] = (wdata >> (i * 8)) & 0xFF;
+            ((uint8_t *)&pmem[idx])[i] = (wdata >> (i * 8)) & 0xFF; // 字节指针
         }
     }
 }
