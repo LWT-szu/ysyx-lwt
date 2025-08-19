@@ -74,7 +74,25 @@ void *memset(void *s, int c, size_t n) {
 }
 
 void *memmove(void *dst, const void *src, size_t n) {
-  panic("Not implemented");
+  unsigned char *ds = (unsigned char *)dst;
+  unsigned char *sr = (unsigned char *)src;
+  if(ds < sr || ds > sr + n){
+    while (n--)
+    {
+      *ds++ = *sr++;
+    }
+  }
+  else if(ds == sr || n==0) return dst;
+  // 正向拷贝会把新写入的内容又当做源内容,导致后面的字节都被前面刚写入的内容覆盖
+  else{// 有重叠，反向拷贝
+    ds += n;
+    sr += n;
+    while (n--)
+    {
+      *ds-- = *sr--;
+    }
+  }
+  return dst;
 }
 
 void *memcpy(void *out, const void *in, size_t n) {

@@ -32,7 +32,7 @@ int atoi(const char* nptr) {
 extern Area heap; // 表示可用堆区的地址范围
 
 static uintptr_t curr = 0; // 当前分配指针（uintptr_t: 无符号指针整数表示）
-static uintptr_t end = 0;  // 结束地址缓存（减少取结构体开销）
+static uintptr_t end = 0;  // 结束地址缓存
 
 void *malloc(size_t size) {
   // On native, malloc() will be called during initializaion of C runtime.
