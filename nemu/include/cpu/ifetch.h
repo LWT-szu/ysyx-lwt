@@ -17,7 +17,7 @@
 
 #include <memory/vaddr.h>
 // 根据给定的虚拟地址pc,从内存里取出长度为 len（一般为4字节）的内容，作为指令，并返回指令内容
-static  uint32_t inst_fetch(vaddr_t *pc, int len) {
+static inline uint32_t inst_fetch(vaddr_t *pc, int len) {
   uint32_t inst = vaddr_ifetch(*pc, len); // 用虚拟地址 addr 读取长度为 len 的内容
   (*pc) += len;
   return inst;
