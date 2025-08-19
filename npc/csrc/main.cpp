@@ -10,15 +10,30 @@
 //#define NVBOARD
 //void pmem_init();
 extern void pmem_init(const char *filename);
+//#define NVBOARD
+//void pmem_init();
+extern void pmem_init(const char *filename);
 
+#ifdef NVBOARD
+#include <nvboard.h>
+void nvboard_bind_all_pins(Vtop *top);
+#endif
 #ifdef NVBOARD
 #include <nvboard.h>
 void nvboard_bind_all_pins(Vtop *top);
 #endif
 
 #define WAVE
+#define WAVE
 
 int main(int argc, char** argv) {
+    //pmem_init(); // 忘了加
+    if (argc < 2)
+    {
+        printf("Usage: %s mem.hex\n", argv[0]);
+        return 1;
+    }
+    pmem_init(argv[1]);
     //pmem_init(); // 忘了加
     if (argc < 2)
     {
@@ -37,8 +52,11 @@ int main(int argc, char** argv) {
     Vtop* top = new Vtop{contextp};
 
 #ifdef NVBOARD
+#ifdef NVBOARD
     nvboard_bind_all_pins(top);  
     nvboard_init();             
+#endif
+
 #endif
 
 #ifdef WAVE
@@ -99,7 +117,13 @@ int main(int argc, char** argv) {
     delete m_trace;      
 #endif
 
+
     delete top;          
+    delete contextp;
+
+#ifdef NVBOARD
+    nvboard_quit();
+#endif
     delete contextp;
 
 #ifdef NVBOARD

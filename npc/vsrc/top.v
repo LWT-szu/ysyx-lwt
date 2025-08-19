@@ -60,11 +60,7 @@ module top (
   wire [31:0] wb_Rresult;  // 写回数据（WBU -> RegisterFile）
   wire [4:0] wb_rd;        // 写回寄存器号（WBU -> RegisterFile）
 
-<<<<<<< HEAD
   reg [31:0] pc_reg = 32'h80000000;       //保存当前 PC值,实现顺序执行和跳转
-=======
-  reg [31:0] pc_reg;       //保存当前 PC值,实现顺序执行和跳转
->>>>>>> d34687c96b7473e4c27729b0dcd29d99cb48dda7
   assign pc = pc_reg;      //pc_reg的“输出端口”
 
   //激励文件中寄存器赋值读取
@@ -86,11 +82,7 @@ module top (
   assign a4 = RegisterFile_init.rf[14];//a4
 
   
-<<<<<<< HEAD
   always @(posedge clk or posedge rst) begin
-=======
-  always @(negedge clk or posedge rst) begin
->>>>>>> d34687c96b7473e4c27729b0dcd29d99cb48dda7
     
     if (rst==1)
         pc_reg <= 32'h80000000;
@@ -193,7 +185,16 @@ endmodule
 
 
 module RegisterFile(
+
+module RegisterFile(
   input clk,
+  input [4:0]rs1,
+  input [4:0]rs2,
+  input [31:0] reg_wdata,     // 接收要写入的alu|ram数据
+  input [4:0] reg_waddr,      // 接收要写入的地址rd
+  input wen,                  // 写使能
+  output  [31:0] rs1_data,
+  output  [31:0] rs2_data
   input [4:0]rs1,
   input [4:0]rs2,
   input [31:0] reg_wdata,     // 接收要写入的alu|ram数据
@@ -205,6 +206,9 @@ module RegisterFile(
   // rf为寄存器数组，大小为32，每个寄存器宽度为32
   reg[31:0] rf[31:0];
   // 写操作：时钟上升沿，当wen为1时，将wdata写入waddr对应的寄存器
+  // rf为寄存器数组，大小为32，每个寄存器宽度为32
+  reg[31:0] rf[31:0];
+  // 写操作：时钟上升沿，当wen为1时，将wdata写入waddr对应的寄存器
   always @(posedge clk) begin
     if (wen && reg_waddr != 0) rf[reg_waddr] <= reg_wdata; // 0号寄存器保护
     
@@ -212,5 +216,12 @@ module RegisterFile(
   assign rs1_data = (rs1 == 0) ? 32'b0 : rf[rs1];
   assign rs2_data = (rs2 == 0) ? 32'b0 : rf[rs2];//如果 rs2 没有用到或者等于 0 号寄存器，输出就是 0
 
+    if (wen && reg_waddr != 0) rf[reg_waddr] <= reg_wdata; // 0号寄存器保护
+    
+  end
+  assign rs1_data = (rs1 == 0) ? 32'b0 : rf[rs1];
+  assign rs2_data = (rs2 == 0) ? 32'b0 : rf[rs2];//如果 rs2 没有用到或者等于 0 号寄存器，输出就是 0
+
 endmodule
+
 
