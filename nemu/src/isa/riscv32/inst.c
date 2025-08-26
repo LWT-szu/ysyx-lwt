@@ -22,6 +22,8 @@
 #include <cpu/ifetch.h>
 #include <cpu/decode.h>
 #include <limits.h> // for INT32_MIN
+#include "ftrace.h"
+
 #define R(i) gpr(i)
 #define Mr vaddr_read
 #define Mw vaddr_write
@@ -49,10 +51,6 @@ enum
 #define immJ() do { *imm =  SEXT((BITS(i,31 , 31) << 20| BITS(i, 19, 12) << 12 | BITS(i, 20, 20) << 11 | BITS(i,30,21) << 1),21);} while(0)
 #define immB() do { *imm = SEXT( ( BITS(i, 31, 31)<< 12| BITS(i, 7, 7) << 11 | BITS(i,30,25)  << 5  | BITS(i, 11, 8) << 1 ) , 13) ; } while(0)
 #define shamtI() do { *imm = BITS(i, 25, 20); } while(0)
-#define immS() do { *imm = (SEXT(BITS(i, 31, 25), 7) << 5) | BITS(i, 11, 7); } while(0)//把符号扩展后的高 7 位左移 5 位
-#define immJ() do { *imm =  SEXT((BITS(i,31 , 31) << 20| BITS(i, 19, 12) << 12 | BITS(i, 20, 20) << 11 | BITS(i,30,21) << 1),21);} while(0)
-#define immB() do { *imm = SEXT( ( BITS(i, 31, 31)<< 12| BITS(i, 7, 7) << 11 | BITS(i,30,25)  << 5  | BITS(i, 11, 8) << 1 ) , 13) ; } while(0)
-#define shamtI() do { *imm = BITS(i, 25, 20); } while(0)
 
 // 指令类型解析出寄存器和立即数
 static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_t *imm, int type) {
@@ -65,10 +63,6 @@ static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_
     case TYPE_I: src1R();          immI(); break;
     case TYPE_U:                   immU(); break;
     case TYPE_S: src1R(); src2R(); immS(); break;
-    case TYPE_J:                   immJ(); break;
-    case TYPE_r: src1R(); src2R();         break;
-    case TYPE_B: src1R(); src2R(); immB(); break;
-    case TYPE_SHAMTI: src1R();    shamtI(); break;
     case TYPE_J:                   immJ(); break;
     case TYPE_r: src1R(); src2R();         break;
     case TYPE_B: src1R(); src2R(); immB(); break;
@@ -131,18 +125,18 @@ static int decode_exec(Decode *s) {
   
   INSTPAT("0000001 ????? ????? 000 ????? 01100 11", mul    , r, R(rd) = (int32_t)src1 * (int32_t)src2);//M
 
-  INSTPAT("0000001 ????? ????? 100 ????? 01100 11", Div    , r, R(rd) = (src2 == 0) ? -1 : ((int32_t)src1 == INT32_MIN && (int32_t)src2 == -1) ? INT32_MIN : (int32_t)src1 / (int32_t)src2;); // M
+  INSTPAT("0000001 ????? ????? 100 ????? 01100 11", Div    , r, R(rd) =(int32_t)src1 / (int32_t)src2;); // M
 
   INSTPAT("0000000 ????? ????? 100 ????? 01100 11", xor    , r, R(rd) = src1 ^ src2);
 
-  INSTPAT("0000001 ????? ????? 110 ????? 01100 11", rem, r, R(rd) = (src2 == 0) ? src1 : ((int32_t)src1 == INT32_MIN && (int32_t)src2 == -1) ? 0 : (int32_t)src1 % (int32_t)src2;);
+  INSTPAT("0000001 ????? ????? 110 ????? 01100 11", rem    , r, R(rd) = (int32_t)src1 % (int32_t)src2;);
 
   INSTPAT("0000000 ????? ????? 010 ????? 01100 11", slt    , r, R(rd) = ((int32_t)src1 < (int32_t)src2) ? 1 : 0 );//补码比较(有符号整数类型)
   INSTPAT("0000001 ????? ????? 001 ????? 01100 11", mulh   , r, R(rd) = ((int64_t)(int32_t) src1 * (int64_t)(int32_t) src2) >> 32);//M  有符号
   INSTPAT("0000001 ????? ????? 011 ????? 01100 11", mulhu  , r, R(rd) = ((uint64_t)(uint32_t)src1 * (uint64_t)(uint32_t)src2) >> 32);//无符号
 
-  INSTPAT("0000001 ????? ????? 111 ????? 01100 11", remu   , r, R(rd) = (src2 == 0) ? src1 : (uint32_t)src1 % (uint32_t)src2);//M
-  INSTPAT("0000001 ????? ????? 101 ????? 01100 11", Divu   , r, R(rd) = (src2 == 0 ) ? 0xFFFFFFFF :(uint32_t)src1 / (uint32_t)src2);// M
+  INSTPAT("0000001 ????? ????? 111 ????? 01100 11", remu   , r, R(rd) = (uint32_t)src1 % (uint32_t)src2);//M
+  INSTPAT("0000001 ????? ????? 101 ????? 01100 11", Divu   , r, R(rd) = (uint32_t)src1 / (uint32_t)src2);// M
 
   INSTPAT("0100000 ????? ????? 101 ????? 01100 11", sra    , r, R(rd) = (int32_t)src1 >> ((int32_t)src2 & 0x1F));//用原数最高位（符号位）填充,就是补码的算术右移,未考虑第五位为位移数
   INSTPAT("0000000 ????? ????? 101 ????? 01100 11", srl    , r, R(rd) = (uint32_t)src1 >> ((int32_t)src2 & 0x1F));//空位补零,未考虑第五位为位移数
@@ -150,7 +144,7 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? 010 ????? 01000 11", sw     , S, Mw(src1 + imm, 4, src2));
   INSTPAT("??????? ????? ????? 000 ????? 01000 11", sb     , S, Mw(src1 + imm, 1, src2));
   INSTPAT("??????? ????? ????? 001 ????? 01000 11", sh     , S, Mw(src1 + imm, 2, src2));
-  INSTPAT("??????? ????? ????? 001 ????? 01000 11", sh     , S, Mw(src1 + imm, 2, src2));
+
 
   //add more instruction in here(maybe)
 
@@ -165,6 +159,33 @@ static int decode_exec(Decode *s) {
 
 int isa_exec_once(Decode *s) {
   s->isa.inst = inst_fetch(&s->snpc, 4);//s->snpc每次加4
-  s->isa.inst = inst_fetch(&s->snpc, 4);//s->snpc每次加4
+  #ifdef CONFIG_FTRACE
+  uint32_t inst = s->isa.inst;
+  if((inst & 0x7F) == 0x6F){
+    // jal
+    printf(FMT_WORD ":%*scall [%s@0x%08x]\n", s->pc, ftrace_depth * 2, "", ftrace_funcname(s->dnpc), s->dnpc);
+    ftrace_depth++;
+  }
+  else if ((inst & 0x7F) == 0x67)
+  {
+    int rd = (inst >> 7) & 0x1f;
+    int rs1 = (inst >> 15) & 0x1f;
+    int imm = (int32_t)inst >> 20;
+    if (rd == 0 && rs1 == 1 && imm == 0)
+    {
+      // ret 指令
+      ftrace_depth--;
+      if (ftrace_depth < 0) ftrace_depth = 0;
+      printf(FMT_WORD ":%*sret  [%s]\n", s->pc, ftrace_depth * 2, "", ftrace_funcname(s->pc));
+    }
+    else
+    {
+      // jalr
+      printf(FMT_WORD ":%*scall [%s@0x%08x]\n", s->dnpc, ftrace_depth * 2, "", ftrace_funcname(s->dnpc), s->dnpc);
+      ftrace_depth++;
+    }
+  }
+#endif
+
   return decode_exec(s);
 }

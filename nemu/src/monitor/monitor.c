@@ -16,6 +16,7 @@
 
 #include <isa.h>
 #include <memory/paddr.h>
+#include "ftrace.h"
 
 void init_rand();
 void init_log(const char *log_file);
@@ -45,15 +46,17 @@ void sdb_set_batch_mode();
 static char *log_file = NULL;
 static char *diff_so_file = NULL;
 static char *img_file = NULL;
+static char *elf_file = NULL;
 static int difftest_port = 1234;
 
+//打开并读取镜像文件
 static long load_img() {
   if (img_file == NULL) {
     Log("No image is given. Use the default build-in image.");
     return 4096; // built-in image size
   }
 
-  FILE *fp = fopen(img_file, "rb");
+  FILE *fp = fopen(img_file, "rb"); // 打开一个二进制镜像文件
   Assert(fp, "Can not open '%s'", img_file);
 
   fseek(fp, 0, SEEK_END);
@@ -63,6 +66,8 @@ static long load_img() {
 
   fseek(fp, 0, SEEK_SET);
   int ret = fread(guest_to_host(RESET_VECTOR), size, 1, fp);
+  //fread 直接把镜像内容拷贝到NEMU的物理内存模拟区
+  // guest_to_host返回仿真物理内存的首地址（RESET_VECTOR,0x80000000），镜像就从这里装入
   assert(ret == 1);
 
   fclose(fp);
@@ -76,25 +81,28 @@ static int parse_args(int argc, char *argv[]) {
     {"diff"     , required_argument, NULL, 'd'},
     {"port"     , required_argument, NULL, 'p'},
     {"help"     , no_argument      , NULL, 'h'},
+    {"elf"      , required_argument, NULL, 'e'},//
     {0          , 0                , NULL,  0 },
   };
   //"-bhl:d:p:"：短选项字符串，: 表示需要参数。table：长选项定义表
   //每个短选项参赛对应的功能
   //开头的 -：这是一个特殊标记，告诉 getopt_long 允许 -lfile 这种 无空格紧凑写法（兼容传统 Unix 工具风格）
   int o;
-  while ( (o = getopt_long(argc, argv, "-bhl:d:p:", table, NULL)) != -1) {
+  while ( (o = getopt_long(argc, argv, "-bhl:d:p:e:", table, NULL)) != -1) {
     switch (o) {
       case 'b': sdb_set_batch_mode(); break;
       case 'p': sscanf(optarg, "%d", &difftest_port); break;
       case 'l': log_file = optarg; break;
       case 'd': diff_so_file = optarg; break;//差分测试动态库
-      case 1: img_file = optarg; return 0;
+      case 'e': elf_file = optarg; break; // 
+      case 1: img_file = optarg; return 0;//NEMU 是通过命令行参数获取镜像文件路径的
       default:
         printf("Usage: %s [OPTION...] IMAGE [args]\n\n", argv[0]);
         printf("\t-b,--batch              run with batch mode\n");
         printf("\t-l,--log=FILE           output log to FILE\n");
         printf("\t-d,--diff=REF_SO        run DiffTest with reference REF_SO\n");
         printf("\t-p,--port=PORT          run DiffTest with port PORT\n");
+        printf("\t-e,--elf=ELF_FILE       load ELF file for ftrace\n");
         printf("\n");
         exit(0);
     }
@@ -102,11 +110,16 @@ static int parse_args(int argc, char *argv[]) {
   return 0;
 }
 
+// 初始化仿真器
 void init_monitor(int argc, char *argv[]) {
   /* Perform some global initialization.初始化工作 */
 
   /* Parse arguments. */
   parse_args(argc, argv);//解析命令行参数,处理传入的参数
+  #ifdef CONFIG_FTRACE
+  if (elf_file) ftrace_init(elf_file);
+  #endif
+
 
   /* Set random seed. */
   init_rand();//初始随机数
@@ -124,6 +137,7 @@ void init_monitor(int argc, char *argv[]) {
   init_isa();
 
   /* Load the image to memory. This will overwrite the built-in image. */
+  /* 加载镜像文件到内存 */
   long img_size = load_img();
 
   /* Initialize differential testing.初始化反汇编器，用于动态打印指令。 */

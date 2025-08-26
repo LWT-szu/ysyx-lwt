@@ -1,6 +1,5 @@
 #include <am.h>
 #include <klib-macros.h>
-
 extern char _heap_start;
 int main(const char *args);
 
@@ -17,7 +16,7 @@ void putch(char ch) {
 void halt(int code) {
   asm volatile("mv a0, %0; ebreak" : :"r"(code));//ebreak
   while (1);
-}
+} 
 
 void _trm_init() {
   int ret = main(mainargs);

@@ -58,7 +58,6 @@ $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 		$(addprefix -CFLAGS , $(CXXFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
 		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
 
-# 兼容旧Makefile的目标
 sim: $(BIN)
 	$(call git_commit, "sim RTL")
 	./$(BIN) $(IMAGE) +trace
@@ -67,9 +66,10 @@ sim: $(BIN)
 all: $(BIN)
 
 run: $(BIN)
-##	./$(BIN) sum.bin +trace
+#	./$(BIN) sum.hex +trace
+	$(call git_commit, "sim RTL")
 	@if [ -z "$(IMAGE)" ]; then \
-		echo "Error: 请通过 'IMAGE=xxx.bin' 指定镜像文件路径new"; \
+		echo "make即可; \
 		exit 1; \
 	fi
 	./$(BIN) $(IMAGE) +trace  

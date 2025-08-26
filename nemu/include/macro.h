@@ -46,10 +46,11 @@
 #define __P_ONE_1  X,
 #define __P_ZERO_0 X,
 // define some selection functions based on the properties of BOOLEAN macro
-#define MUXDEF(macro, X, Y)  MUX_MACRO_PROPERTY(__P_DEF_, macro, X, Y)
-#define MUXNDEF(macro, X, Y) MUX_MACRO_PROPERTY(__P_DEF_, macro, Y, X)
-#define MUXONE(macro, X, Y)  MUX_MACRO_PROPERTY(__P_ONE_, macro, X, Y)
-#define MUXZERO(macro, X, Y) MUX_MACRO_PROPERTY(__P_ZERO_,macro, X, Y)
+// 这些宏允许你在编译时根据某个宏是否定义、定义为1还是0，来选择不同的代码。
+#define MUXDEF(macro, X, Y) MUX_MACRO_PROPERTY(__P_DEF_, macro, X, Y) // 如果 macro 已定义，选择 X，否则选择 Y
+#define MUXNDEF(macro, X, Y) MUX_MACRO_PROPERTY(__P_DEF_, macro, Y, X) // 如果 macro 未定义，选择 X，否则选择 Y
+#define MUXONE(macro, X, Y) MUX_MACRO_PROPERTY(__P_ONE_, macro, X, Y)  // 如果 macro 定义为1，选择 X，否则选择 Y
+#define MUXZERO(macro, X, Y) MUX_MACRO_PROPERTY(__P_ZERO_, macro, X, Y) // 如果 macro 定义为0，选择 X，否则选择 Y
 
 // test if a boolean macro is defined
 #define ISDEF(macro) MUXDEF(macro, 1, 0)
@@ -97,6 +98,7 @@
 #define unlikely(cond) __builtin_expect(cond, 0)
 #endif
 
+/* ==================== AM（Abstract Machine）IOE 操作宏 ==================== */
 // for AM IOE
 #define io_read(reg) \
   ({ reg##_T __io_param; \

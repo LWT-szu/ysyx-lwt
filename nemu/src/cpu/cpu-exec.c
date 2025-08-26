@@ -24,17 +24,26 @@
  * You can modify this value as you want.
  */
 #define MAX_INST_TO_PRINT 10
+#define IRINGBUF_SIZE 16
 
 CPU_state cpu = {};
-uint64_t g_nr_guest_inst = 0;
-static uint64_t g_timer = 0; // unit: us
-static bool g_print_step = false;
+uint64_t g_nr_guest_inst = 0; // 统计执行的客户指令数量
+static uint64_t g_timer = 0; // 模拟硬件定时器,定义并初始化定时器 us
+static bool g_print_step = false; // 定义并初始化单步打印标志
+
+/* ====================  Iringbuf ==================== */
+static char iringbuf[IRINGBUF_SIZE][128];
+static int iringbuf_pos = 0;          // 当前写入指针（下一个要写的位置）
+static bool iringbuf_full = false;    // 写满一圈后,为 true
+/* ====================  Iringbuf ==================== */
 
 void device_update();
 
 // 执行过程中的调试跟踪和差异测试,调试、验证和定位错误
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 //若开启指令跟踪（CONFIG_ITRACE_COND），则输出指令日志到日志系统
+
+/* ==================== Itrace ==================== */
 #ifdef CONFIG_ITRACE_COND
   if (ITRACE_COND) { log_write("%s\n", _this->logbuf); }
 #endif
@@ -58,6 +67,8 @@ static void exec_once(Decode *s, vaddr_t pc) {
   s->snpc = pc; // 下一条指令的PC
   isa_exec_once(s); // 真正执行指令的地方,解码并执行一条指令
   cpu.pc = s->dnpc; // 将dnpc赋值给全局的cpu的pc
+
+/* ==================== Itrace ==================== */
 #ifdef CONFIG_ITRACE
   char *p = s->logbuf;
   p += snprintf(p, sizeof(s->logbuf), FMT_WORD ":", s->pc);
@@ -85,6 +96,14 @@ static void exec_once(Decode *s, vaddr_t pc) {
   void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
   disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
       MUXDEF(CONFIG_ISA_x86, s->snpc, s->pc), (uint8_t *)&s->isa.inst, ilen);
+  /* ====================  Iringbuf ==================== */
+  // 将当前指令的踪迹字符串写入环形缓冲区
+  strncpy(iringbuf[iringbuf_pos], s->logbuf, 127);
+  iringbuf[iringbuf_pos][127] = '\0';
+  iringbuf_pos = (iringbuf_pos + 1) % IRINGBUF_SIZE;
+  if (iringbuf_pos == 0)
+    iringbuf_full = true;
+  /* ====================  Iringbuf ==================== */
 #endif
 }
 
@@ -141,6 +160,19 @@ void cpu_exec(uint64_t n) {
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :
             ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
           nemu_state.halt_pc);
+      /* ====================  Iringbuf ==================== */
+      // 程序异常/结束时输出最近 IRINGBUF_SIZE 条指令踪迹
+        printf("%d instructions before trap:\n", IRINGBUF_SIZE);
+        int start = iringbuf_full ? iringbuf_pos : 0;
+        int count = iringbuf_full ? IRINGBUF_SIZE : iringbuf_pos;
+        int error = (iringbuf_pos + IRINGBUF_SIZE - 1) % IRINGBUF_SIZE;
+        for (int i = 0; i < count; i++)
+        {
+          int idx = (start + i) % IRINGBUF_SIZE;
+          if (idx == error) printf("--> %s\n", iringbuf[idx]); // 标记异常指令
+          else printf("    %s\n", iringbuf[idx]);
+        }
+        /* ==================== Iringbuf ==================== */
       // fall through
     case NEMU_QUIT: statistic();
   }

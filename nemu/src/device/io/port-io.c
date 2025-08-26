@@ -45,6 +45,7 @@ void add_pio_map(const char *name, ioaddr_t addr, void *space, uint32_t len, io_
   nr_map ++;
 }
 
+// 目前没地方用过这个
 /* CPU interface 当CPU代码通过端口号“读”时，会调用这个函数*/
 uint32_t pio_read(ioaddr_t addr, int len) {
   assert(addr + len - 1 < PORT_IO_SPACE_MAX);

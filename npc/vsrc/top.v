@@ -1,27 +1,35 @@
+import "DPI-C" function void halt(input int pc,input int halt_ret);
 module top (
   input clk,
   input rst,
   //input [31:0]inst,
   output [31:0]pc,
+  
   //output [31:0] rf_flat [31:0],
-  
-  
+  output [31:0]alu_ram,
+  output [31:0]inst_out,
   output [31:0] zero,//zero
   output [31:0] ra,//ra
 
   output [31:0] sp,//sp
   output [31:0] gp,//gp
   output [31:0] tp,//tp
+  output [31:0] t0,//tp
+  output [31:0] t1,//tp
+  output [31:0] t2,//tp
+  
   output [31:0] s0,//s0
   output [31:0] s1,//s1
 
   output [31:0] a0,//a0
   output [31:0] a1,//a1
-
+  output [31:0] a2,//a2
   output [31:0] a3,//a3
-  output [31:0] a4//a4
+  output [31:0] a4,//a4
+  output [31:0] a5//a5
   
 );
+
 /*
   genvar i;
   generate
@@ -31,7 +39,7 @@ module top (
   endgenerate
 */
   wire [31:0]next_pc;      // 下一条指令的 PC，由 WBU 产生
-  wire [31:0]inst_out;     // IFU 输出的指令（传给 IDU）
+  //wire [31:0]inst_out;     // IFU 输出的指令（传给 IDU）
 
   wire [31:0]imm;          // 立即数解码结果（IDU -> EXU）
   wire [4:0]rd;            // 写回寄存器号（IDU -> WBU）
@@ -53,7 +61,7 @@ module top (
   wire [31:0]rs1_data;     // 源寄存器数据（RegisterFile -> EXU）
   wire [31:0]rs2_data;
   wire [31:0]alu_result;   // ALU 计算结果（EXU -> WBU）
-  wire [31:0]alu_ram;
+  //wire [31:0]alu_ram;
   wire [31:0]rdata_ram;
 
   wire wb_wen;             // 写回使能（WBU -> RegisterFile）
@@ -101,6 +109,7 @@ module top (
   //译码
   IDU IDU_init(
   .inst_ym(inst_out),
+  .pc(pc),
   .IDU_imm(imm),//
   .IDU_rd(rd),
   .IDU_rs1(rs1),
@@ -153,6 +162,7 @@ module top (
   .rst(rst),
   .pc(pc_reg),
   .alu_data(alu_result),//从alu中读取数据
+  .alu_addr(alu_ram),// 读地址lw,lbu--------------------
   .ram_data(rdata_ram),//从ram中读取数据
   .waddr(rd),          //往rd中写入
   .reg_en(Reg_write),
@@ -169,11 +179,13 @@ module top (
 
   RegisterFile RegisterFile_init(
   .clk(clk),
+  .pc(pc),
   .rs1(rs1),
   .rs2(rs2),
   .reg_wdata(wb_Rresult),     // 写入ALU,RAM数据
   .reg_waddr(wb_rd),          // 写入地址rd
   .wen(wb_wen),               // 写使能
+  .inst_out(inst_out),
   .rs1_data(rs1_data),
   .rs2_data(rs2_data)
   //注意去掉逗号！！！！！！！！！！！！！！
@@ -183,29 +195,18 @@ module top (
 endmodule
 
 
-
-module RegisterFile(
-
 module RegisterFile(
   input clk,
+  input [31:0]pc,
   input [4:0]rs1,
   input [4:0]rs2,
   input [31:0] reg_wdata,     // 接收要写入的alu|ram数据
   input [4:0] reg_waddr,      // 接收要写入的地址rd
   input wen,                  // 写使能
-  output  [31:0] rs1_data,
-  output  [31:0] rs2_data
-  input [4:0]rs1,
-  input [4:0]rs2,
-  input [31:0] reg_wdata,     // 接收要写入的alu|ram数据
-  input [4:0] reg_waddr,      // 接收要写入的地址rd
-  input wen,                  // 写使能
+  input [31:0]inst_out,
   output  [31:0] rs1_data,
   output  [31:0] rs2_data
 );
-  // rf为寄存器数组，大小为32，每个寄存器宽度为32
-  reg[31:0] rf[31:0];
-  // 写操作：时钟上升沿，当wen为1时，将wdata写入waddr对应的寄存器
   // rf为寄存器数组，大小为32，每个寄存器宽度为32
   reg[31:0] rf[31:0];
   // 写操作：时钟上升沿，当wen为1时，将wdata写入waddr对应的寄存器
@@ -215,12 +216,16 @@ module RegisterFile(
   end
   assign rs1_data = (rs1 == 0) ? 32'b0 : rf[rs1];
   assign rs2_data = (rs2 == 0) ? 32'b0 : rf[rs2];//如果 rs2 没有用到或者等于 0 号寄存器，输出就是 0
-
-    if (wen && reg_waddr != 0) rf[reg_waddr] <= reg_wdata; // 0号寄存器保护
-    
+  always @(*) begin
+    if(inst_out == 32'h00100073 && rf[10] == 32'b0)begin
+      halt(pc,0);
+    end   
+    else if(inst_out == 32'h00100073 && rf[10] == 32'b1)begin
+      $display("a0=0x%08x",rf[10]);
+      halt(pc,1);
+    end
   end
-  assign rs1_data = (rs1 == 0) ? 32'b0 : rf[rs1];
-  assign rs2_data = (rs2 == 0) ? 32'b0 : rf[rs2];//如果 rs2 没有用到或者等于 0 号寄存器，输出就是 0
+
 
 endmodule
 
