@@ -36,6 +36,8 @@ module WBU (
   assign wb_wen = reg_en;
   assign wb_rd = waddr;
   assign next_pc = (jalr_en) ? (alu_data & 32'hfffffffe) : (pc + 4);
+
+endmodule
     /*always @(*) begin
     if (wb_wen) begin
       if (is_lbu_type)
@@ -52,4 +54,3 @@ module WBU (
     else next_pc <= pc + 32'h00000004;
   end
   */
-endmodule

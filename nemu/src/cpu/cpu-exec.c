@@ -40,13 +40,16 @@ static bool iringbuf_full = false;    // 写满一圈后,为 true
 void device_update();
 
 // 执行过程中的调试跟踪和差异测试,调试、验证和定位错误
+//_this是一个指向Decode结构体的指针
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
-//若开启指令跟踪（CONFIG_ITRACE_COND），则输出指令日志到日志系统
 
 /* ==================== Itrace ==================== */
+// 若开启指令跟踪（CONFIG_ITRACE_COND），则输出指令日志到日志系统
+// 取出指针_this指向的Decode结构体中的logbuf成员，表示“这一条指令的日志缓冲区”
 #ifdef CONFIG_ITRACE_COND
   if (ITRACE_COND) { log_write("%s\n", _this->logbuf); }
 #endif
+
   // 若开启单步打印（g_print_step），则将指令信息打印到屏幕
   if (g_print_step) { IFDEF(CONFIG_ITRACE, puts(_this->logbuf)); }
   //若开启差异测试（CONFIG_DIFFTEST），则调用差异测试模块验证当前执行步骤
@@ -70,8 +73,13 @@ static void exec_once(Decode *s, vaddr_t pc) {
 
 /* ==================== Itrace ==================== */
 #ifdef CONFIG_ITRACE
-  char *p = s->logbuf;
+  char *p = s->logbuf; // （该条指令的信息最后会被输出到字符串缓冲区）
+  // 把当前指令的 PC 地址格式化写入 logbuf
   p += snprintf(p, sizeof(s->logbuf), FMT_WORD ":", s->pc);
+
+  /*以字节形式遍历指令机器码（RISC-V 是 4 字节）
+  格式化输出为十六进制字符串，追加到 logbuf
+  目的是在日志里看到一条指令的机器码，比如 b3 00 31 00*/
   int ilen = s->snpc - s->pc;
   int i;
   uint8_t *inst = (uint8_t *)&s->isa.inst;
@@ -93,6 +101,7 @@ static void exec_once(Decode *s, vaddr_t pc) {
   p += space_len;
 
   // 对机器码进行反汇编，生成汇编语言的字符串描述，追加到日志
+  // p：输出字符串的起始位置（接在机器码后面）
   void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
   disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
       MUXDEF(CONFIG_ISA_x86, s->snpc, s->pc), (uint8_t *)&s->isa.inst, ilen);
@@ -109,7 +118,7 @@ static void exec_once(Decode *s, vaddr_t pc) {
 
 // 在主循环的基础上,模拟不断执行指令
 static void execute(uint64_t n) {
-  Decode s;
+  Decode s; // 声明后会在后续代码中被赋值和初始化，不需要一开始就全部初始化
   for (;n > 0; n --) {
     exec_once(&s, cpu.pc);
     g_nr_guest_inst ++;

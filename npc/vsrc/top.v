@@ -3,11 +3,16 @@ module top (
   input clk,
   input rst,
   //input [31:0]inst,
+  output w_ram,
+  output is_load_type,
   output [31:0]pc,
   
-  //output [31:0] rf_flat [31:0],
-  output [31:0]alu_ram,
-  output [31:0]inst_out,
+  output [31:0] rf[31:0],
+  output [31:0] rs2_data,
+  output [31:0] rdata_ram,
+  output [31:0] wdata_ram,
+  output [31:0] alu_ram,//addr
+  output [31:0] inst_out,
   output [31:0] zero,//zero
   output [31:0] ra,//ra
 
@@ -30,14 +35,14 @@ module top (
   
 );
 
-/*
+  //打印寄存器看看
   genvar i;
   generate
     for (i = 0; i < 32; i = i + 1) begin : rf_export
-      assign rf_flat[i] = RegisterFile_init.rf[i];
+      assign rf[i] = RegisterFile_init.rf[i];
     end
   endgenerate
-*/
+
   wire [31:0]next_pc;      // 下一条指令的 PC，由 WBU 产生
   //wire [31:0]inst_out;     // IFU 输出的指令（传给 IDU）
 
@@ -53,16 +58,16 @@ module top (
   wire Jump_en;
   wire add_alu;
   wire ls_vaild;   //访存
-  wire w_ram;
-  wire is_load_type;
+  //wire w_ram;
+  //wire is_load_type;
   wire is_lbu_type;
   wire is_sb_type;
 
   wire [31:0]rs1_data;     // 源寄存器数据（RegisterFile -> EXU）
-  wire [31:0]rs2_data;
+  //wire [31:0]rs2_data;
   wire [31:0]alu_result;   // ALU 计算结果（EXU -> WBU）
   //wire [31:0]alu_ram;
-  wire [31:0]rdata_ram;
+  //wire [31:0]rdata_ram;
 
   wire wb_wen;             // 写回使能（WBU -> RegisterFile）
   wire [31:0] wb_Rresult;  // 写回数据（WBU -> RegisterFile）

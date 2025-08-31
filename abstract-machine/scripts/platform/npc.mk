@@ -25,8 +25,9 @@ image: image-dep
 	@echo + OBJCOPY "->" $(IMAGE_REL).bin
 	@$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin
 
-NPC_BIN ?= /home/lwt/ysyx-workbench/npc/build/top
+NPC_HOME ?= /home/lwt/ysyx-workbench/npc
+NPC_BIN ?= $(NPC_HOME)/build/top
 run: insert-arg
-	$(NPC_BIN) $(IMAGE).bin +trace 
+	$(MAKE) -C $(NPC_HOME) && $(NPC_BIN) $(IMAGE).bin +trace
 #传递程序镜像
 .PHONY: insert-arg

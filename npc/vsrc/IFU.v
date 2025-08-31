@@ -10,10 +10,11 @@ module IFU (
 );
   assign inst_out = pmem_read(pc,pc,0,0);
   
-  
+  /*
   always @(*) begin
     //assign inst_out = pmem_read(pc,pc);
     $display("pc=%08x",pc);
   end
+  */
   
 endmodule

@@ -46,17 +46,36 @@ CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*
 #CSRCS += $(SRC_AUTO_BIND)
 INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
-#LDFLAGS += -lSDL2 -lSDL2_image
+# 加载和显示图像的库
+LDFLAGS += -lSDL2 -lSDL2_image
+
+# ---------------- Capstone 自动识别与依赖配置 ----------------
+# 检查 csrc/npc.h 是否定义了 CONFIG_NPC_ITRACE 宏（表示启用指令反汇编 itrace）
+# 如果启用，则自动添加 Capstone 头文件和动态库依赖
+ifeq ($(findstring CONFIG_NPC_ITRACE, $(shell grep -o CONFIG_NPC_ITRACE csrc/npc.h)),CONFIG_NPC_ITRACE)
+CAPSTONE_PATH = $(abspath ../nemu/tools/capstone/repo)
+LIBCAPSTONE = $(CAPSTONE_PATH)/libcapstone.so.5
+CXXFLAGS += -I$(CAPSTONE_PATH)/include
+LDFLAGS += -L$(CAPSTONE_PATH) -lcapstone
+CAPSTONE_DEP = $(LIBCAPSTONE)
+else 
+CAPSTONE_DEP = 
+endif
+# --------------------------------------------------------------------------
 
 # 主要构建目标
 $(shell mkdir -p $(BUILD_DIR))
-
-$(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
+#$^代表所有依赖,给 verilator 传参数
+$(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE) $(CAPSTONE_DEP)
 	@rm -rf $(OBJ_DIR) wave.vcd
 	$(VERILATOR) $(VERILATOR_CFLAGS) \
-		--top-module $(TOPNAME) $^ \
+		--top-module $(TOPNAME) $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE) \
 		$(addprefix -CFLAGS , $(CXXFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
 		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
+
+# capstone 库依赖自动构建
+$(LIBCAPSTONE):
+	$(MAKE)	-C	../nemu/tools/capstone
 
 sim: $(BIN)
 	$(call git_commit, "sim RTL")
@@ -68,13 +87,8 @@ all: $(BIN)
 run: $(BIN)
 #	./$(BIN) sum.hex +trace
 	$(call git_commit, "sim RTL")
-	@if [ -z "$(IMAGE)" ]; then \
-		echo "make即可; \
-		exit 1; \
-	fi
 	./$(BIN) $(IMAGE) +trace  
 # 运行指定的镜像
-
 
 clean:
 	rm -rf $(BUILD_DIR) wave.vcd obj_dir

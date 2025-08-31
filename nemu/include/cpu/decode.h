@@ -17,12 +17,14 @@
 #define __CPU_DECODE_H__
 
 #include <isa.h>
-
 typedef struct Decode {
   vaddr_t pc;                       
   vaddr_t snpc; // static next pc
   vaddr_t dnpc; // dynamic next pc
   ISADecodeInfo isa;
+  /*如果定义了CONFIG_ITRACE，每个Decode对象就有一个
+  char logbuf[128]的数组用于存放一条指令的日志信息
+ （PC、机器码、反汇编结果等）*/
   IFDEF(CONFIG_ITRACE, char logbuf[128]);
 } Decode;
 

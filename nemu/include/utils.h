@@ -56,6 +56,8 @@ uint64_t get_time();
 
 #define ANSI_FMT(str, fmt) fmt str ANSI_NONE
 
+// 向日志文件(log_fp)写入内容
+//调用log_enable()判断日志功能是否启用,检查日志文件指针log_fp是否有效
 #define log_write(...) IFDEF(CONFIG_TARGET_NATIVE_ELF, \
   do { \
     extern FILE* log_fp; \
@@ -66,7 +68,7 @@ uint64_t get_time();
     } \
   } while (0) \
 )
-
+// 既输出到屏幕（printf），又写入日志文件（log_write）
 #define _Log(...) \
   do { \
     printf(__VA_ARGS__); \
