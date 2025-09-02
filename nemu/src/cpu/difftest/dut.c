@@ -71,6 +71,7 @@ void init_difftest(char *ref_so_file, long img_size, int port) {
   assert(ref_so_file != NULL);
 
   // 加载参考模型的动态库
+  // 声明动态库句柄：用于存储 dlopen 返回值
   void *handle;
   handle = dlopen(ref_so_file, RTLD_LAZY);
   assert(handle);
@@ -98,7 +99,16 @@ void init_difftest(char *ref_so_file, long img_size, int port) {
       "If it is not necessary, you can turn it off in menuconfig.", ref_so_file);
 
   ref_difftest_init(port); // 初始化参考模型
+  /*
+  // 用于将 DUT 的镜像内容（通常是指令和数据）拷贝到 REF
+  // RESET_VECTOR: 宿主物理内存起始地址
+  // guest_to_host(RESET_VECTOR): DUT 侧镜像的起始虚拟地址
+  // img_size: 镜像文件大小
+  // DIFFTEST_TO_REF: 方向标志，表示把内存内容从 DUT 拷贝到 REF*/
   ref_difftest_memcpy(RESET_VECTOR, guest_to_host(RESET_VECTOR), img_size, DIFFTEST_TO_REF); // 拷贝镜像到 REF
+
+  // &cpu: 指向 DUT 当前寄存器状态的指针
+  // DIFFTEST_TO_REF: 方向标志，表示把寄存器内容从 DUT 拷贝到 REF
   ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);// 拷贝初始寄存器状态到 REF!!!!!!
 }
 

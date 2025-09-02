@@ -16,7 +16,7 @@
 #include <isa.h>
 #include <cpu/difftest.h>
 #include "../local-include/reg.h"
-// 把 cpu 和 ref_r 一一对比
+// 把 cpu 和 ref_r 一一对比  NEMU作为DUT时使用
 bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc) {
   return !memcmp(ref_r, &cpu, sizeof(CPU_state));
 }

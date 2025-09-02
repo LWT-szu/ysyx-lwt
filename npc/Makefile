@@ -46,8 +46,10 @@ CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*
 #CSRCS += $(SRC_AUTO_BIND)
 INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
+CXXFLAGS += -fsanitize=address
+CFLAGS += -fsanitize=address
 # 加载和显示图像的库
-LDFLAGS += -lSDL2 -lSDL2_image
+LDFLAGS += -lSDL2 -lSDL2_image -lreadline -fsanitize=address
 
 # ---------------- Capstone 自动识别与依赖配置 ----------------
 # 检查 csrc/npc.h 是否定义了 CONFIG_NPC_ITRACE 宏（表示启用指令反汇编 itrace）
@@ -66,7 +68,7 @@ endif
 # 主要构建目标
 $(shell mkdir -p $(BUILD_DIR))
 #$^代表所有依赖,给 verilator 传参数
-$(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE) $(CAPSTONE_DEP)
+$(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE) $(CAPSTONE_DEP) 
 	@rm -rf $(OBJ_DIR) wave.vcd
 	$(VERILATOR) $(VERILATOR_CFLAGS) \
 		--top-module $(TOPNAME) $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE) \

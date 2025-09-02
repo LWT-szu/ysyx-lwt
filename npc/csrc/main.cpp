@@ -9,11 +9,11 @@
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
-extern void pmem_init(const char *filename);
+extern size_t pmem_init(const char *filename);
 VerilatedContext *contextp;
 Vtop *top;
 VerilatedVcdC *m_trace;
-int end;
+int end; // 单步执行用的end
 FILE *itrace_fp = NULL;
 char str[128];
 
@@ -38,6 +38,7 @@ void cpu_exec(int n,int print_inst){
 #ifdef WAVE
         m_trace->dump(contextp->time()); // 当前仿真时间下所有信号的值
 #endif
+        //printf("[DEBUG] while pc = 0x%08x\n",top->pc);
 /* ==================== NPC_State ==================== */
         if(npc_state.state == NPC_END || npc_state.state == NPC_ABORT){
             if(npc_state.state == NPC_ABORT){
@@ -49,6 +50,7 @@ void cpu_exec(int n,int print_inst){
             }else if(npc_state.halt_ret == 0){
                 npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
                 fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->inst_out, str);//log ebreak
+                fprintf(itrace_fp, "\033[38;5;117mNPC : HIT GOOD TRAP at pc = 0x%08x\033[0m\n", npc_state.halt_pc);
 
                 printf("\033[38;5;117ma0 = %08x\033[0m\n", top->a0);
                 printf("\033[38;5;117mNPC : HIT GOOD TRAP at pc = 0x%08x\033[0m\n", npc_state.halt_pc);
@@ -119,6 +121,10 @@ void cpu_exec(int n,int print_inst){
     #ifdef WAVE
         m_trace->dump(contextp->time());
     #endif
+
+    #ifdef CONFIG_DIFFTEST
+            difftest_step();//把difftest_step()从打印/日志逻辑里拿到主循环每一轮的末尾,你一开始把他放主循环外面了
+    #endif
         count++;
     }
 }
@@ -131,9 +137,32 @@ int main(int argc, char** argv) {
         printf("Usage: %s mem.hex\n", argv[0]);
         return 1;
     }
-    pmem_init(argv[1]);
-    printf("load file%s\n",argv[1]);
+
+
     contextp = new VerilatedContext; // VerilatedContext *contextp
+#ifdef WAVE
+    contextp->traceEverOn(true);
+#endif
+    contextp->commandArgs(argc, argv);
+    top = new Vtop{contextp}; // Vtop* top
+
+#ifdef CONFIG_DIFFTEST
+    size_t imge_size = pmem_init(argv[1]);
+    // difftest debug上电后拉高复位
+    top->rst = 1;
+    top->clk = 0;top->eval();
+    top->clk = 1;top->eval();
+    // 拉低复位，进入正常运行
+    top->rst = 0;
+
+    //printf("[DEBUG] pc = 0x%08x\n",top->pc);
+    init_difftest(imge_size, 0);
+#else
+    pmem_init(argv[1]);
+#endif
+
+    printf("load file%s\n",argv[1]);
+    
 
 #ifdef CONFIG_NPC_ITRACE
     init_disassemble();
@@ -145,11 +174,6 @@ int main(int argc, char** argv) {
         exit(1);
     } 
 
-#ifdef WAVE
-    contextp->traceEverOn(true); 
-#endif
-    contextp->commandArgs(argc, argv);
-    top = new Vtop{contextp}; // Vtop* top
 
 #ifdef NVBOARD
     nvboard_bind_all_pins(top);  
@@ -164,12 +188,14 @@ int main(int argc, char** argv) {
     end = 0;
     while(1){
         // 程序等待用户输入指令
-        char cmd[32];
-        printf("(npc) ");
-        if (fgets(cmd, sizeof(cmd), stdin) == NULL)
-        {
-            printf("\n检测到输入流结束(EOL/EOF)，程序退出。\n");
-            break; 
+        //char cmd[32];
+        //printf("(npc) ");
+        //fgets(cmd, sizeof(cmd), stdin)
+        //Makefile需要链接时加 -lreadline
+        char *cmd = npc_readline("(npc) ");
+        if(cmd[0] == 'q'){
+            free(cmd);
+            break;
         }
         // 打印寄存器info r
         else if(strncmp(cmd,"info r",6) == 0){
@@ -185,7 +211,7 @@ int main(int argc, char** argv) {
             sscanf(cmd + 2, "%d",&step);
             if(step <= 0) step = 1;
             if(end) printf("\033[1;33m程序已运行结束,请重新编译!\033[0m\n");
-            if(!end)cpu_exec(step,1);
+            else if(!end)cpu_exec(step,1);
         }
         //扫描内存x N addr
         else if(strncmp(cmd,"x",1) == 0){
@@ -206,9 +232,10 @@ int main(int argc, char** argv) {
         else if(cmd[0] == 'q') break;
         else if (cmd[0] == 'c'){
             if(end) printf("\033[1;33m程序已运行结束,请重新编译!\033[0m\n");
-            if(!end) cpu_exec(-1,0); // 连续跑
+            else if(!end) cpu_exec(-1,0); // 连续跑
         }
         else printf("未知命令！支持 si [N], c, q,info r\n");
+        free(cmd);
     }
 
 #ifdef WAVE

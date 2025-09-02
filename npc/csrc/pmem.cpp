@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "npc.h"
-#define PMEM_BASE 0x80000000u
+
 #define MEM_SIZE (1 << 24) // 16MB 
 uint32_t pmem[(MEM_SIZE)];
 
@@ -85,7 +85,7 @@ extern "C" void pmem_write( int waddr,  int wdata, char wmask,int pc)
 (wdata >> (i * 8)) & 0xFF：把要写的数据右移 i*8 位，提取第 i 个字节，然后与0xFF做位掩码只保留低8位
 作用：将 wdata 的第 i 个字节写到 pmem[idx] 的第 i 个字节（如果 wmask 允许）*/
 #ifdef RAM_MODE_BIN
-    void pmem_init(const char *filename)
+    size_t pmem_init(const char *filename)
     {
         FILE *fp = fopen(filename, "rb");
         if (!fp)
@@ -97,6 +97,7 @@ extern "C" void pmem_write( int waddr,  int wdata, char wmask,int pc)
         size_t n = fread(pmem, 1, MEM_SIZE * sizeof(uint32_t), fp);
         printf("Loaded %zu bytes from %s\n", n, filename);
         fclose(fp);
+        return n;
     }
 #endif
 

@@ -4,6 +4,12 @@
 #include <capstone/capstone.h>
 #include <stdio.h>
 #include <assert.h>
+#include <readline/readline.h>
+#include <readline/history.h>
+#include <stdbool.h>
+
+extern Vtop *top;
+extern uint32_t pmem[];
 
 NPCState npc_state = { .state = NPC_RUNNING};
 
@@ -11,6 +17,10 @@ static size_t(*cs_disasm_dl)(csh handl,const uint8_t *code,
     size_t code_size, uint32_t address, size_t count,cs_insn **insn);
 static void (*cs_free_dl)(cs_insn *insn, size_t count);
 
+void (*ref_difftest_memcpy)(paddr_t addr,void *buf,size_t n,bool direction) = NULL;
+void (*ref_difftest_regcpy)(void *dut,bool direction)= NULL;
+void (*ref_difftest_exec)(uint64_t n) = NULL;
+void (*ref_difftest_raise_intr)(uint64_t NO)=NULL;
 static csh handle;
 
 void npc_set_state(int state,uint32_t pc,uint32_t halt_ret){
@@ -68,4 +78,91 @@ void npc_disassemble(char *str,int size,uint32_t pc,uint32_t inst){
         snprintf(str + ret, size - ret , "\t%s",insn->op_str);
     }
     cs_free_dl(insn,count);
+}
+
+char* npc_readline(const char *prompt){
+    char *line = readline(prompt);
+    if(line && *line) add_history(line);
+    return line;
+}
+
+// 获取当前NPC寄存器状态
+void reg_curr_state(npc_CPU_state *dst){
+    assert(dst != NULL);
+    for(int i = 0;i<32;i++){//???????????
+        dst->gpr[i] = top->rf[i];
+    }
+    dst->pc = top->pc;
+}
+
+// 加载参考模型动态库，获取相关函数指针，初始化参考模型状态
+void init_difftest(long img_size,int port){
+    
+    // 声明动态库句柄：用于存储 dlopen 返回值
+    void *handle;
+    // // 加载参考模型(NEMU REF)的动态库，RTLD_LAZY表示“用到哪个符号再解析哪个符号”，更快
+    handle = dlopen("/home/lwt/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so", RTLD_LAZY);
+    if (!handle)
+    {
+        fprintf(stderr, "dlopen failed: %s\n", dlerror());
+        exit(1);
+    }
+    assert(handle);
+
+    // --------- 下面是获取各个 DiffTest 接口的函数指针 ---------
+    // 用于在 REF 和 DUT 之间同步内存内容
+    ref_difftest_memcpy = reinterpret_cast < void (*)(paddr_t, void *, size_t, bool)> (dlsym(handle, "difftest_memcpy"));
+    assert(ref_difftest_memcpy);
+
+    // 用于在 REF 和 DUT 之间同步寄存器内容
+    ref_difftest_regcpy = reinterpret_cast<void (*)(void *, bool)>(dlsym(handle, "difftest_regcpy"));
+    assert(ref_difftest_regcpy);
+
+    // ref_difftest_exec：指向参考模型的单步执行函数
+    // 让 REF 执行指定条数的指令
+    ref_difftest_exec = reinterpret_cast<void (*)(uint64_t)>(dlsym(handle, "difftest_exec"));
+    assert(ref_difftest_exec);
+
+    ref_difftest_raise_intr = reinterpret_cast<void (*)(uint64_t)>(dlsym(handle, "difftest_raise_intr"));
+    assert(ref_difftest_raise_intr);
+
+    void (*ref_difftest_init)(int) = reinterpret_cast<void (*)(int)>(dlsym(handle, "difftest_init"));
+    assert(ref_difftest_init);
+
+    // 初始化 REF
+    ref_difftest_init(port);
+    ref_difftest_memcpy(PMEM_BASE, (uint8_t *)pmem, img_size, 1); // 1: DIFFTEST_TO_REF
+
+    // 寄存器同步：把 DUT 的寄存器同步到 REF
+    npc_CPU_state cpu_snap;
+    reg_curr_state(&cpu_snap);
+    ref_difftest_regcpy(&cpu_snap,1);
+}
+
+void difftest_step(){
+    // 1. 让 REF 执行一条指令
+    ref_difftest_exec(1);
+
+    // 2. 从 REF 拿回寄存器
+    npc_CPU_state ref_state;
+    ref_difftest_regcpy(&ref_state, 0); // 0: DIFFTEST_TO_DUT
+
+    // 3. 取 DUT 自己当前寄存器
+    npc_CPU_state dut_state;
+    reg_curr_state(&dut_state);
+
+    // 4. 比较：所有寄存器和PC
+    for(int i = 0;i<32;i++){
+        if(dut_state.gpr[i] != ref_state.gpr[i]){
+            printf("Difftest Fail: reg[%d] NPC=0x%08x REF=0x%08x\n",i,dut_state.gpr[i],ref_state.gpr[i]);
+            npc_set_state(NPC_ABORT,dut_state.pc,1);
+            return;
+        }
+    }
+
+    if(dut_state.pc != ref_state.pc){
+        printf("Difftest fail:PC mismatch NPC=0x%08x REF=0x%08x\n",dut_state.pc,ref_state.pc);
+        npc_set_state(NPC_ABORT,dut_state.pc,1);
+        return;
+    }
 }
