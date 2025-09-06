@@ -53,8 +53,10 @@ module top (
   wire [4:0]rs2;
 
   wire [2:0]func;          // 功能码（IDU -> EXU）
+  wire [6:0]func7;
   wire [6:0]opcode;        // 操作码（IDU -> EXU）
   wire Reg_write;          // 写使能信号（IDU -> WBU/RegFile）
+  wire Jal_en;
   wire Jump_en;
   wire add_alu;
   wire ls_vaild;   //访存
@@ -62,12 +64,18 @@ module top (
   //wire is_load_type;
   wire is_lbu_type;
   wire is_sb_type;
+  wire is_sh_type;
+  wire is_branch;
+  wire is_lh_type;
+  wire is_lhu_type;
 
   wire [31:0]rs1_data;     // 源寄存器数据（RegisterFile -> EXU）
   //wire [31:0]rs2_data;
   wire [31:0]alu_result;   // ALU 计算结果（EXU -> WBU）
   //wire [31:0]alu_ram;
   //wire [31:0]rdata_ram;
+  wire branch_taken;
+  wire [31:0]branch_target;
 
   wire wb_wen;             // 写回使能（WBU -> RegisterFile）
   wire [31:0] wb_Rresult;  // 写回数据（WBU -> RegisterFile）
@@ -115,34 +123,47 @@ module top (
   IDU IDU_init(
   .inst_ym(inst_out),
   .pc(pc),
+
   .IDU_imm(imm),//
   .IDU_rd(rd),
   .IDU_rs1(rs1),
   .IDU_rs2(rs2),
   .IDU_func(func),
+  .IDU_func7(func7),
   .IDU_opcode(opcode),
   .Reg_write(Reg_write),
+  .Jal_en(Jal_en),
   .Jump_en(Jump_en),
   .add_alu(add_alu),
   .ls_vaild(ls_vaild),   //访存
   .w_ram(w_ram),          //访存
   .is_load_type(is_load_type),
   .is_lbu_type(is_lbu_type),  //字节区分
-  .is_sb_type (is_sb_type)
+  .is_sb_type (is_sb_type),
+  .is_sh_type(is_sh_type),
+  .is_branch(is_branch),
+  .is_lh_type(is_lh_type),
+  .is_lhu_type(is_lhu_type)
 
   //注意去掉逗号！！！！！！！！！！！！！！
 );
 
 //ALU算术逻辑单元
   EXU EXU_init(
+  .pc(pc),
   .imm_alu(imm),//imm
   .rs1_alu(rs1_data),
   .rs2_alu(rs2_data),//x[rs2]
   .alu_src(add_alu),
   .func_alu(func),
+  .func7_alu(func7),
   .opcode_alu(opcode),
+  .is_branch(is_branch),
+
   .alu_result(alu_result), //output
-  .alu_ram(alu_ram)
+  .alu_ram(alu_ram),
+  .branch_taken(branch_taken),
+  .branch_target(branch_target)
   //注意去掉逗号！！！！！！！！！！！！！！
 );
 
@@ -155,6 +176,8 @@ module top (
     .waddr_ram(alu_ram),      // 写地址?????
     .wdata_ram(rs2_data),     // 要写入的数据 from gpr
     .is_sb_type(is_sb_type),  // 写掩码
+    .is_sh_type(is_sh_type),
+    .is_lh_type(is_lh_type),
     .pc(pc),
     .rdata_ram(rdata_ram)     // out读取内存内容
 );
@@ -171,14 +194,20 @@ module top (
   .ram_data(rdata_ram),//从ram中读取数据
   .waddr(rd),          //往rd中写入
   .reg_en(Reg_write),
+  .Jal_en(Jal_en),
   .jalr_en(Jump_en),
   .is_load_type(is_load_type),
   .is_lbu_type(is_lbu_type),
+  .is_branch(is_branch),
+  .is_lh_type(is_lh_type),
+  .is_lhu_type(is_lhu_type),
 
   .wb_wen(wb_wen),//  output  wb_wen = reg_en
   .wb_rd(wb_rd),
   .wb_Rresult(wb_Rresult),//写回到寄存器的数据来自ALU,RAM
-  .next_pc(next_pc)
+  .next_pc(next_pc),
+  .branch_taken(branch_taken),
+  .branch_target(branch_target)
   //注意去掉逗号！！！！！！！！！！！！！！
 );
 
@@ -216,9 +245,15 @@ module RegisterFile(
   reg[31:0] rf[31:0];
   // 写操作：时钟上升沿，当wen为1时，将wdata写入waddr对应的寄存器
   always @(posedge clk) begin
-    if (wen && reg_waddr != 0) rf[reg_waddr] <= reg_wdata; // 0号寄存器保护
-    
+    //$display("reg_wdata=0x%08x",reg_wdata);
+    //$display("reg_waddr=%05b",reg_waddr);
+    if (wen && reg_waddr != 0) begin
+      rf[reg_waddr] <= reg_wdata; // 0号寄存器保护
+      //$display("a0=0x%08x",rf[10]);
+    end
+
   end
+
   assign rs1_data = (rs1 == 0) ? 32'b0 : rf[rs1];
   assign rs2_data = (rs2 == 0) ? 32'b0 : rf[rs2];//如果 rs2 没有用到或者等于 0 号寄存器，输出就是 0
   always @(*) begin

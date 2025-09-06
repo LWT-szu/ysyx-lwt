@@ -12,7 +12,7 @@ CFLAGS    += -fdata-sections -ffunction-sections
 LDSCRIPTS += $(AM_HOME)/scripts/linker.ld
 LDFLAGS   += --defsym=_pmem_start=0x80000000 --defsym=_entry_offset=0x0
 LDFLAGS   += --gc-sections -e _start
-
+###NPCARGS   += -b 
 MAINARGS_MAX_LEN = 64
 MAINARGS_PLACEHOLDER = the_insert-arg_rule_in_Makefile_will_insert_mainargs_here
 CFLAGS += -DMAINARGS_MAX_LEN=$(MAINARGS_MAX_LEN) -DMAINARGS_PLACEHOLDER=$(MAINARGS_PLACEHOLDER)
@@ -28,6 +28,6 @@ image: image-dep
 NPC_HOME ?= /home/lwt/ysyx-workbench/npc
 NPC_BIN ?= $(NPC_HOME)/build/top
 run: insert-arg
-	$(MAKE) -C $(NPC_HOME) && $(NPC_BIN) $(IMAGE).bin +trace
+	$(MAKE) -C $(NPC_HOME) && $(NPC_BIN) $(IMAGE).bin $(NPCARGS)   +trace 
 #传递程序镜像
 .PHONY: insert-arg

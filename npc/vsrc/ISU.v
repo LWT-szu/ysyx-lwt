@@ -9,6 +9,8 @@ module ISU (
     input [31:0]waddr_ram,        // 写地址EXU
     input [31:0]wdata_ram,        //  要写入的数据gpr
     input is_sb_type,
+    input is_sh_type,
+    input is_lh_type,
     input [31:0]pc,
     output reg [31:0]rdata_ram
 
@@ -16,7 +18,10 @@ module ISU (
     wire [7:0]wmask;
     reg [31:0] data_ram;
 
-    assign wmask = is_sb_type ? (8'b00000001 << waddr_ram[1:0]): 8'b00001111;
+    assign wmask = is_sb_type ? (8'b00000001 << waddr_ram[1:0]): 
+            is_sh_type ? (waddr_ram[1] ? 8'b00001100 : 8'b00000011) :
+            8'b00001111;
+
     always @(*) begin
         data_ram = 32'b0; 
         if(valid && !wen_ram)begin
@@ -28,7 +33,7 @@ module ISU (
             rdata_ram = 0;
         end
 
-        if(is_sb_type)begin
+        if(is_sb_type)begin//sb
             
             case (waddr_ram[1:0])
                 2'b00:begin
@@ -45,7 +50,15 @@ module ISU (
                 end 
                 default: data_ram =32'b0;
             endcase
-        end else if(!is_sb_type)begin
+
+        end else if (is_sh_type) begin//sh
+        case (waddr_ram[1:0])
+            2'b00: data_ram = {16'b0, wdata_ram[15:0]};
+            2'b10: data_ram = {wdata_ram[15:0], 16'b0};
+            default: data_ram = 32'b0;
+        endcase
+
+        end else begin
             data_ram = wdata_ram;
         end
 

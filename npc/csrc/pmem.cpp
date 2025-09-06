@@ -15,6 +15,18 @@ extern "C" int pmem_read(int raddr, int pc, int valid, int wen_ram)
         npc_set_state(NPC_ABORT,pc,1);
         printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
     }
+
+    if (raddr == RTC_ADDR)
+    {
+        uint64_t now = get_time_in_us();
+        return (uint32_t)(now & 0xFFFFFFFF); // 低32位
+    }
+    if (raddr == RTC_ADDR + 4)
+    {
+        uint64_t now = get_time_in_us();
+        return (uint32_t)(now >> 32); // 高32位
+    }
+
     uint32_t off = raddr - PMEM_BASE;
     uint32_t idx = (off & ~0x3u) >> 2;
     if (idx >= MEM_SIZE)
@@ -49,6 +61,14 @@ extern "C" void pmem_write( int waddr,  int wdata, char wmask,int pc)
         npc_set_state(NPC_ABORT, pc, 1);
         printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
     }
+
+    if (waddr <= SERIAL_PORT && waddr >= 0xa0000000)
+    {
+        putchar(wdata & 0xFF);
+        // printf("hello!");
+        return;
+    }
+
     uint32_t addr = (uint32_t)waddr - PMEM_BASE;
     uint32_t idx = (addr & ~0x3u) >> 2; // 地址变成4字节对齐
     if (idx >= MEM_SIZE)

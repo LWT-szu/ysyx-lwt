@@ -7,7 +7,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <stdbool.h>
-
+#include <sys/time.h>
 extern Vtop *top;
 extern uint32_t pmem[];
 
@@ -165,4 +165,13 @@ void difftest_step(){
         npc_set_state(NPC_ABORT,dut_state.pc,1);
         return;
     }
+}
+static uint64_t boot_time = 0;
+uint64_t get_time_in_us()
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    uint64_t now = (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+    if (boot_time == 0) boot_time = now;
+    return now - boot_time;
 }
