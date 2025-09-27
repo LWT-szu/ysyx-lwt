@@ -56,7 +56,7 @@ module EXU (
         3'b001:begin
           if(func7_alu == 7'b0000000)
             alu_result = rs1_alu << in2_alu[4:0];//sll
-            $display("opcode_alu = %07b,func_alu=%03b,alu_result=%08x,rs1_alu=%08x,in2_alu[4:0]=%05b| pc = %08x\n",opcode_alu,func_alu,alu_result,rs1_alu,in2_alu[4:0],pc);
+            //$display("opcode_alu = %07b,func_alu=%03b,alu_result=%08x,rs1_alu=%08x,in2_alu[4:0]=%05b| pc = %08x\n",opcode_alu,func_alu,alu_result,rs1_alu,in2_alu[4:0],pc);
         end
         3'b111: alu_result = rs1_alu & in2_alu;//and
         3'b011: alu_result = ( $unsigned(rs1_alu) < $unsigned(in2_alu)) ? 1 : 0;//sltu

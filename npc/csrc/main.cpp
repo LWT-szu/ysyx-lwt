@@ -42,23 +42,27 @@ void cpu_exec(int n,int print_inst){
 /* ==================== NPC_State ==================== */
         if(npc_state.state == NPC_END || npc_state.state == NPC_ABORT){
             if(npc_state.state == NPC_ABORT){
+                #ifdef LOG
                 npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
                 fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->inst_out, str);
+                #endif
 
                 printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
 
             }else if(npc_state.halt_ret == 0){
+#ifdef LOG
                 npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
                 fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->inst_out, str);//log ebreak
                 fprintf(itrace_fp, "\033[38;5;117mNPC : HIT GOOD TRAP at pc = 0x%08x\033[0m\n", npc_state.halt_pc);
-
+#endif
                 printf("\033[38;5;117ma0 = %08x\033[0m\n", top->a0);
                 printf("\033[38;5;117mNPC : HIT GOOD TRAP at pc = 0x%08x\033[0m\n", npc_state.halt_pc);
                 end = 1;
             }else{
+#ifdef LOG
                 npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
                 fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->inst_out, str);
-
+#endif
                 printf("\33[1;31mError instruction : %08x\33[0m\n", top->inst_out);
                 printf("\033[1;31mNPC : HIT BAD TRAP at pc = 0x%08x\033[0m\n", npc_state.halt_pc);
             }
@@ -67,6 +71,7 @@ void cpu_exec(int n,int print_inst){
 /* ==================== NPC_State ==================== */
 
 /* ==================== NPC_ITRAC ==================== */
+#ifdef LOG
         // 实现命令c的日志加载rdata_ram
         if(n==-1 && itrace_fp){
             npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
@@ -85,11 +90,12 @@ void cpu_exec(int n,int print_inst){
             /* ==================== 记录访存操作的地址和数据 ==================== */
             fflush(itrace_fp);
         }
+#endif
         // 只在单步/si时打印
         if (print_inst){
-            
             //printf("          0x%08x \n",top->inst_out);
             npc_disassemble(str,sizeof(str), top->pc, top->inst_out);
+#ifdef LOG
             if(itrace_fp){
                 fprintf(itrace_fp, "0x%08x:      %08x      %s", top->pc, top->inst_out, str);
                 /* ==================== 记录访存操作的地址和数据 ==================== */
@@ -100,6 +106,7 @@ void cpu_exec(int n,int print_inst){
                 /* ==================== 记录访存操作的地址和数据 ==================== */
                 fflush(itrace_fp);
             }
+#endif
             uint8_t inst_byte[4]; // 两个字节分开输出
             inst_byte[0] = top->inst_out & 0xFF;
             inst_byte[1] = (top->inst_out >> 8 ) & 0xFF;
@@ -167,13 +174,15 @@ int main(int argc, char** argv) {
 #ifdef CONFIG_NPC_ITRACE
     init_disassemble();
 #endif
+
+#ifdef LOG
     itrace_fp = fopen("npc-itrace-log.txt","w");
     fprintf(itrace_fp, "Load image file : %s\n", argv[1]);
     if(!itrace_fp){
         perror("npc-itrace-log.txt 创建失败");
         exit(1);
     } 
-
+#endif
 
 #ifdef NVBOARD
     nvboard_bind_all_pins(top);  
@@ -186,6 +195,10 @@ int main(int argc, char** argv) {
     m_trace->open("wave.vcd");            
 #endif
     end = 0;
+
+#ifdef AUTO_RUN
+    cpu_exec(-1, 0);
+#elif
     while(1){
         // 程序等待用户输入指令
         //char cmd[32];
@@ -237,6 +250,7 @@ int main(int argc, char** argv) {
         else printf("未知命令！支持 si [N], c, q,info r\n");
         free(cmd);
     }
+#endif
 
 #ifdef WAVE
     m_trace->close();    

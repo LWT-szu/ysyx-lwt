@@ -131,11 +131,53 @@ int sprintf(char *out, const char *fmt, ...) {
 }
 
 int snprintf(char *out, size_t n, const char *fmt, ...) {
-  panic("Not implemented");
+  va_list ap;
+  va_start(ap, fmt);
+  int ret = vsnprintf(out, n, fmt, ap);
+  va_end(ap);
+  return ret;
 }
 
 int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
-  panic("Not implemented");
+  char *q = out;
+  const char *p = fmt;
+  size_t written = 0;
+  if (n == 0) return 0;
+  while (*p && written < n - 1) {
+    if (*p == '%') {
+      p++;
+      if (*p == 's') {
+        char *str = va_arg(ap, char *);
+        if (!str) str = "(null)";
+        while (*str && written < n - 1)
+          *q++ = *str++, written++;
+      } else if (*p == 'd') {
+        int num = va_arg(ap, int);
+        if (num < 0 && written < n - 1) {
+          *q++ = '-', written++;
+          num = -num;
+        }
+        char buf[16], *r = buf;
+        if (num == 0) *r++ = '0';
+        else {
+          while (num) {
+            *r++ = '0' + num % 10;
+            num /= 10;
+          }
+        }
+        while (r > buf && written < n - 1) *q++ = *--r, written++;
+      } else {
+        if (written < n - 1) *q++ = '%', written++;
+        if (written < n - 1) *q++ = *p, written++;
+      }
+      p++;
+    } else {
+      *q++ = *p++;
+      written++;
+    }
+  }
+  *q = '\0';
+  return written;
 }
 
 #endif

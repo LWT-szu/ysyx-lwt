@@ -2,19 +2,21 @@
 #ifndef __NPC_H__
 #define __NPC_H__
 
-#define WAVE
+//#define WAVE
 // #define NVBOARD
 #define ANSI_FG_SKYBLUE "\033[38;5;117m"
 #define ANSI_FG_RED "\33[1;31m"
 #define ANSI_NONE "\33[0m"
 //#define CONFIG_NPC_MTRACE
 #define CONFIG_NPC_ITRACE
+//#define LOG
 #define RAM_MODE_BIN 1
 #define SI_TRACE
 #define PMEM_BASE 0x80000000u
 #define SERIAL_PORT 0xa00003f8 // 串口（UART）0x10000000
 #define RTC_ADDR 0xa0000048
 //#define CONFIG_DIFFTEST
+#define AUTO_RUN
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -62,9 +62,11 @@ extern "C" void pmem_write( int waddr,  int wdata, char wmask,int pc)
         printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
     }
 
-    if (waddr <= SERIAL_PORT && waddr >= 0xa0000000)
+    if (waddr == SERIAL_PORT)
     {
+        //printf("[SERIAL] write: waddr=0x%08x, wdata=0x%08x, wmask=0x%02x\n", waddr, wdata, wmask);
         putchar(wdata & 0xFF);
+        fflush(stdout);               // 确保输出及时刷新：
         // printf("hello!");
         return;
     }

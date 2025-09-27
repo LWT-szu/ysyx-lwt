@@ -49,6 +49,10 @@ void *malloc(size_t size) {
   }
 
   size = (size + 7) & ~((size_t)7);
+  if (curr + size > end) {  // 加边界检测！！！
+    printf("[MALLOC] out of heap! curr=0x%lx size=0x%lx end=0x%lx\n", curr, size, end);
+    return NULL;
+  }
   void *ret = (void *)curr;
   curr += size;
   return ret;
