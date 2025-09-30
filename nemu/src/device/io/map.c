@@ -21,6 +21,7 @@
 #include <memory/host.h>
 #include <memory/vaddr.h>
 #include <device/map.h>
+#include <cpu/decode.h>
 
 #define IO_SPACE_MAX (32 * 1024 * 1024)
 
@@ -71,6 +72,9 @@ word_t map_read(paddr_t addr, int len, IOMap *map) {
   // 计算addr在设备内部空间的偏移,比如map->low=0xa0000048、addr=0xa000004c，则offset=4
   invoke_callback(map->callback, offset, len, false); // prepare data to read 2. 调用回调函数（如有），用于同步设备状态
   word_t ret = host_read(map->space + offset, len);   // 3. 从从map->space读出us值.读取数据
+#ifdef CONFIG_DTRACE
+  printf("[DTrace] PC=0x%x READ: Device=%s addr=%08x data=0x%x len=%d\n", cpu.pc, map->name, addr, ret, len);
+#endif
   return ret;
 }
 
@@ -81,4 +85,7 @@ void map_write(paddr_t addr, int len, word_t data, IOMap *map) {
   paddr_t offset = addr - map->low;
   host_write(map->space + offset, len, data);
   invoke_callback(map->callback, offset, len, true);
+#ifdef CONFIG_DTRACE
+  printf("[DTrace] PC=0x%x WRITE: Device=%s addr=%08x data=0x%x len=%d\n", cpu.pc, map->name, addr, data, len);
+#endif
 }

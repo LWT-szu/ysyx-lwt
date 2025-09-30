@@ -20,8 +20,8 @@
 
 typedef struct {
   word_t gpr[MUXDEF(CONFIG_RVE, 16, 32)];
-  vaddr_t pc;
-} MUXDEF(CONFIG_RV64, riscv64_CPU_state, riscv32_CPU_state);
+  vaddr_t pc;                                                // 程序计数器
+} MUXDEF(CONFIG_RV64, riscv64_CPU_state, riscv32_CPU_state); // 根据宏是否定义来选择架构,判断用 16 还是 32
 
 // decode
 typedef struct {

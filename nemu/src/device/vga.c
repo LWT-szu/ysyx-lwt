@@ -18,7 +18,7 @@
 
 #define SCREEN_W (MUXDEF(CONFIG_VGA_SIZE_800x600, 800, 400))
 #define SCREEN_H (MUXDEF(CONFIG_VGA_SIZE_800x600, 600, 300))
-
+// （优先从抽象机器AM获取配置，否则使用默认值）
 static uint32_t screen_width() {
   return MUXDEF(CONFIG_TARGET_AM, io_read(AM_GPU_CONFIG).width, SCREEN_W);
 }
@@ -31,8 +31,8 @@ static uint32_t screen_size() {
   return screen_width() * screen_height() * sizeof(uint32_t);
 }
 
-static void *vmem = NULL;
-static uint32_t *vgactl_port_base = NULL;
+static void *vmem = NULL; // 虚拟显存指针（帧缓冲区）
+static uint32_t *vgactl_port_base = NULL; // VGA控制寄存器基地址
 
 #ifdef CONFIG_VGA_SHOW_SCREEN
 #ifndef CONFIG_TARGET_AM
@@ -55,7 +55,7 @@ static void init_screen() {
       SDL_TEXTUREACCESS_STATIC, SCREEN_W, SCREEN_H);
   SDL_RenderPresent(renderer);
 }
-
+// 更新屏幕显示（将vmem中的像素数据拷贝到纹理并渲染）
 static inline void update_screen() {
   SDL_UpdateTexture(texture, NULL, vmem, SCREEN_W * sizeof(uint32_t));
   SDL_RenderClear(renderer);
@@ -71,9 +71,13 @@ static inline void update_screen() {
 #endif
 #endif
 
+// 同步寄存器
 void vga_update_screen() {
-  // TODO: call `update_screen()` when the sync register is non-zero,
-  // then zero out the sync register
+  if (vgactl_port_base[1] != 0){//是不是AM写了1
+    update_screen();
+    vgactl_port_base[1] = 0;
+  }
+  
 }
 
 void init_vga() {

@@ -22,6 +22,7 @@ typedef struct {
 typedef struct Context Context;
 
 // An event of type @event, caused by @cause of pointer @ref
+// 事件结构体,用于描述一次中断、异常或事件发生时的详细信息
 typedef struct {
   enum {
     EVENT_NULL = 0,

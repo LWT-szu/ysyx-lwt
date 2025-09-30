@@ -11,9 +11,13 @@
 * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 *
 * See the Mulan PSL v2 for more details.
+* 是 NEMU 的 DiffTest 框架的主控代码，实现了与参考模型(REF, 通常为 QEMU 或 Spike)的动态交互。
+* 主要负责动态加载参考模型的 so 文件，初始化接口，拷贝内存和寄存器，步进执行，并和 DUT (NEMU自身) 做指令级、寄存器级对比。
+* 支持特殊情况的跳过机制，如 QEMU 指令打包和无法比对的特殊指令。
+* 是 NEMU 实现“差分测试”的桥梁和核心
 ***************************************************************************************/
 
-#include <dlfcn.h>
+#include <dlfcn.h> // 动态链接库操作头文件，支持运行时加载参考模型（Reference Model）的 so 文件
 
 #include <isa.h>
 #include <cpu/cpu.h>
@@ -21,6 +25,7 @@
 #include <utils.h>
 #include <difftest-def.h>
 
+// 下面这四个是指向参考模型(REF)的函数指针，后续通过 dlsym 加载
 void (*ref_difftest_memcpy)(paddr_t addr, void *buf, size_t n, bool direction) = NULL;
 void (*ref_difftest_regcpy)(void *dut, bool direction) = NULL;
 void (*ref_difftest_exec)(uint64_t n) = NULL;
@@ -28,11 +33,12 @@ void (*ref_difftest_raise_intr)(uint64_t NO) = NULL;
 
 #ifdef CONFIG_DIFFTEST
 
-static bool is_skip_ref = false;
-static int skip_dut_nr_inst = 0;
+static bool is_skip_ref = false; // 指示是否跳过 REF 的一次检查
+static int skip_dut_nr_inst = 0; // 要跳过的 DUT 指令数
 
 // this is used to let ref skip instructions which
 // can not produce consistent behavior with NEMU
+// 让 REF 跳过一次比较，通常遇到一些无法比对的指令时使用
 void difftest_skip_ref() {
   is_skip_ref = true;
   // If such an instruction is one of the instruction packing in QEMU
@@ -51,6 +57,8 @@ void difftest_skip_ref() {
 // The semantic is
 //   Let REF run `nr_ref` instructions first.
 //   We expect that DUT will catch up with REF within `nr_dut` instructions.
+// 当 QEMU 一次执行多条指令（instruction packing）时，
+// 让 REF 先执行 nr_ref 条指令，DUT 最多跳 nr_dut 条指令来追赶 REF 的 PC
 void difftest_skip_dut(int nr_ref, int nr_dut) {
   skip_dut_nr_inst += nr_dut;
 
@@ -58,14 +66,16 @@ void difftest_skip_dut(int nr_ref, int nr_dut) {
     ref_difftest_exec(1);
   }
 }
-
+// 初始化 DiffTest，加载参考模型动态库，获取相关函数指针，初始化参考模型状态
 void init_difftest(char *ref_so_file, long img_size, int port) {
   assert(ref_so_file != NULL);
 
+  // 加载参考模型的动态库
   void *handle;
   handle = dlopen(ref_so_file, RTLD_LAZY);
   assert(handle);
 
+  // 获取 REF 端的各项函数指针
   ref_difftest_memcpy = dlsym(handle, "difftest_memcpy");
   assert(ref_difftest_memcpy);
 
@@ -78,6 +88,7 @@ void init_difftest(char *ref_so_file, long img_size, int port) {
   ref_difftest_raise_intr = dlsym(handle, "difftest_raise_intr");
   assert(ref_difftest_raise_intr);
 
+  // 调用 REF 的初始化函数
   void (*ref_difftest_init)(int) = dlsym(handle, "difftest_init");
   assert(ref_difftest_init);
 
@@ -86,11 +97,12 @@ void init_difftest(char *ref_so_file, long img_size, int port) {
       "This will help you a lot for debugging, but also significantly reduce the performance. "
       "If it is not necessary, you can turn it off in menuconfig.", ref_so_file);
 
-  ref_difftest_init(port);
-  ref_difftest_memcpy(RESET_VECTOR, guest_to_host(RESET_VECTOR), img_size, DIFFTEST_TO_REF);
-  ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);
+  ref_difftest_init(port); // 初始化参考模型
+  ref_difftest_memcpy(RESET_VECTOR, guest_to_host(RESET_VECTOR), img_size, DIFFTEST_TO_REF); // 拷贝镜像到 REF
+  ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);// 拷贝初始寄存器状态到 REF!!!!!!
 }
 
+// 检查参考模型和 DUT 的寄存器是否一致，如果不一致则触发异常
 static void checkregs(CPU_state *ref, vaddr_t pc) {
   if (!isa_difftest_checkregs(ref, pc)) {
     nemu_state.state = NEMU_ABORT;
@@ -99,9 +111,11 @@ static void checkregs(CPU_state *ref, vaddr_t pc) {
   }
 }
 
+// 核心的 DiffTest 步进函数，每执行一条指令都调用一次
 void difftest_step(vaddr_t pc, vaddr_t npc) {
-  CPU_state ref_r;
+  CPU_state ref_r; // REF 当前寄存器状态
 
+  // 如果还需要跳过 DUT 的比对（比如 QEMU 指令打包时）
   if (skip_dut_nr_inst > 0) {
     ref_difftest_regcpy(&ref_r, DIFFTEST_TO_DUT);
     if (ref_r.pc == npc) {
@@ -114,19 +128,19 @@ void difftest_step(vaddr_t pc, vaddr_t npc) {
       panic("can not catch up with ref.pc = " FMT_WORD " at pc = " FMT_WORD, ref_r.pc, pc);
     return;
   }
-
+  // 处理需要跳过参考模型执行的情况
   if (is_skip_ref) {
     // to skip the checking of an instruction, just copy the reg state to reference design
     ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);
     is_skip_ref = false;
     return;
   }
+  // 正常的差分测试流程：
+  ref_difftest_exec(1); // 让参考模型执行一条指令
+  ref_difftest_regcpy(&ref_r, DIFFTEST_TO_DUT); // 获取参考模型的寄存器状态
 
-  ref_difftest_exec(1);
-  ref_difftest_regcpy(&ref_r, DIFFTEST_TO_DUT);
-
-  checkregs(&ref_r, pc);
+  checkregs(&ref_r, pc); // 检查寄存器是否一致
 }
-#else
+#else // 如果没有打开 DIFFTEST，提供空函数防止链接错误
 void init_difftest(char *ref_so_file, long img_size, int port) { }
 #endif

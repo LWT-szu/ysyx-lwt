@@ -38,7 +38,9 @@ static void serial_putc(char ch) {
 }
 
 /*写数据寄存器（offset==0）时，把刚写入的那个字节通过 serial_putc 输出到主机终端。
-读操作直接报错（NEMU只支持写串口）。*/
+读操作直接报错（NEMU只支持写串口）。
+当CPU模拟代码访问这个区间（比如写0xa00003f8）时，NEMU会经过mmio_write或pio_write，
+最终查表找到串口的handler，然后自动调用serial_io_handler。*/
 static void serial_io_handler(uint32_t offset, int len, bool is_write) {
   assert(len == 1);
   switch (offset) {// offset=0，对应串口数据寄存器

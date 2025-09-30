@@ -12,8 +12,10 @@ CFLAGS    += -I$(AM_HOME)/am/src/platform/nemu/include
 LDSCRIPTS += $(AM_HOME)/scripts/linker.ld
 LDFLAGS   += --defsym=_pmem_start=0x80000000 --defsym=_entry_offset=0x0
 LDFLAGS   += --gc-sections -e _start
-NEMUFLAGS += -l $(shell dirname $(IMAGE).elf)/nemu-log.txt
+NEMUFLAGS += -l $(shell dirname $(IMAGE).elf)/nemu-log.txt##指定nemu-log.txt的 log 输出文件路径
 NEMUFLAGS += -b ###批处理
+NEMUFLAGS += -e $(IMAGE).elf###指定加载的 ELF 文件,而不是bin镜像）,注意要在monitor上修改内容，让命令可以读取-e
+###NEMUFLAGS 是传递给 NEMU 模拟器的命令行参数的集合
 
 
 MAINARGS_MAX_LEN = 64

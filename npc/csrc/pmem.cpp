@@ -1,24 +1,56 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "npc.h"
 #define PMEM_BASE 0x80000000u
-#define MEM_SIZE (1 << 24)
-uint32_t pmem[MEM_SIZE];
+#define MEM_SIZE (1 << 24) // 16MB 
+uint32_t pmem[(MEM_SIZE)];
 
 // 可以用PC和ALU计算的结果来来访问lw,lbu
-extern "C" int pmem_read(int raddr,int pc)
+extern "C" int pmem_read(int raddr, int pc, int valid, int wen_ram)
 {
+    /* ==================== mtrace ==================== */
+    
     if (raddr < PMEM_BASE)
     {
-        printf("Error: below base raddr=0x%08x base=0x%08x pc=0x%08x\n", raddr, PMEM_BASE, pc);
+        printf("Error: blow base raddr=0x%08x base=0x%08x pc=0x%08x\n", raddr, PMEM_BASE, pc);
+        npc_set_state(NPC_ABORT,pc,1);
+        printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
+    }
+        
+    /* ==================== mtrace ==================== */
+    if (raddr == RTC_ADDR)
+    {
+        uint64_t now = get_time_in_us();
+        return (uint32_t)(now & 0xFFFFFFFF); // 低32位
+    }
+    if (raddr == RTC_ADDR + 4)
+    {
+        uint64_t now = get_time_in_us();
+        return (uint32_t)(now >> 32); // 高32位
     }
     uint32_t off = raddr - PMEM_BASE;
     uint32_t idx = (off & ~0x3u) >> 2;
+    //printf("off = 0x%08x | idx = 0x%08x\n", raddr, idx);
+    //printf("\n");
+    /* ==================== mtrace ==================== */
+
     if (idx >= MEM_SIZE)
     {
         printf("Error: pmem_read access out of range! raddr=0x%x idx=%d\n", raddr, idx);
-        exit(1);
+        npc_set_state(NPC_ABORT, pc, 1);
+        printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
     }
+    /*
+    if (valid && !wen_ram)
+    {
+        printf("pc=0x%08x pmem_read[%u][0x%08x] = 0x%08x\n", pc, idx, idx, pmem[idx]);
+        printf("\n");
+    }
+    */
+
+    /* ==================== mtrace ==================== */
+
     return pmem[(off & ~0x3u) >> 2]; // 4 字节对齐的地址
 }
 
@@ -28,23 +60,54 @@ wmask：写掩码（4位，每位对应一个字节，1表示需要写，0表示
 
 // 实现了按字节写存储器的功能sw（写全部4字节）、sb（只写1字节）
 // ALU算出的有效地址
-extern "C" void pmem_write(int waddr, int wdata, char wmask)
+extern "C" void pmem_write( int waddr,  int wdata, char wmask,int pc)
 {
+    /* ==================== mtrace ==================== */
+    
+    if (waddr < PMEM_BASE)
+    {
+        printf("Error: blow base raddr=0x%08x base=0x%08x\n", waddr, PMEM_BASE);
+        npc_set_state(NPC_ABORT, pc, 1);
+        printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
+    }
+
+    if (waddr <= SERIAL_PORT && waddr >= 0xa0000000)
+    {
+        putchar(wdata & 0xFF);
+        //printf("hello!");
+        return;
+    }
+    /* ==================== mtrace ==================== */
+
     uint32_t addr = (uint32_t)waddr - PMEM_BASE;
     uint32_t idx = (addr & ~0x3u) >> 2; // 地址变成4字节对齐
+
+    /* ==================== mtrace ==================== */
+
     if (idx >= MEM_SIZE)
     {
         printf("Error: pmem_write access out of range! waddr=0x%x idx=%d\n", waddr, idx);
-        exit(1);
+        npc_set_state(NPC_ABORT, pc, 1);
+        printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
     }
-    for (int i = 0; i < 4; i++)     // 遍历4个字节
+    /* ==================== mtrace ==================== */
+
+    for (int i = 0; i < 4; i++)     // 遍历4个字节.字节写使能
     {
         if (wmask & (1 << i))       // 每一位代表当前字节是否需要写,若 wmask 的第 i 位是1，则写入该字节，否则保留原值。
         {
-            //((uint8_t *) &pmem[idx] ) [i] = (wmask == 0xF) ? ((wdata >> (i*8)) & 0xFF) : (wdata & 0xFF);
             ((uint8_t *)&pmem[idx])[i] = (wdata >> (i * 8)) & 0xFF;
         }
     }
+    
+    /* ==================== mtrace ==================== */
+    //printf("======== wdata=0x%08x==========\n", wdata);
+    //if (wmask == 0x0F) printf("pmem_sw[%u][0x%08x] = %08x\n", idx,idx, pmem[idx]);
+    //else printf("pmem_sb[%u][0x%08x] = %08x\n", idx,idx, pmem[idx]);
+    //printf("======================end==========================");
+    //printf("\n");
+    
+    /* ==================== mtrace ==================== */
 }
 /*(1 << i)得到一个只有第 i 位是 1 的二进制数
 (uint8_t *)&pmem[idx]：把 pmem[idx] 的地址强转为字节指针，可以按字节访问一个32位整数的内容

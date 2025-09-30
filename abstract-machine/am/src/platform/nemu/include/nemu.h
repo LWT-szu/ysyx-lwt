@@ -16,7 +16,7 @@
 # define nemu_trap(code) asm volatile("move $a0, %0; break 0" : :"r"(code))
 // 把 code 放进 a0 然后执行 ebreak；“退出”是模拟器约定对 ebreak 的特殊处理，
 // 看到它就读取 a0 当退出码并结束运行
-// 退出的逻辑在“仿真/硬件侧”完成。名字随便叫，nemu_trap、npc_trap、_halt 都行
+// 退出的逻辑在“仿真/硬件侧”完成。
 #else
 # error unsupported ISA __ISA__
 #endif
@@ -35,7 +35,7 @@
 #define VGACTL_ADDR     (DEVICE_BASE + 0x0000100)
 #define AUDIO_ADDR      (DEVICE_BASE + 0x0000200)
 #define DISK_ADDR       (DEVICE_BASE + 0x0000300)
-#define FB_ADDR         (MMIO_BASE   + 0x1000000)
+#define FB_ADDR (MMIO_BASE + 0x1000000) // 帧缓冲区在物理内存中的基地址
 #define AUDIO_SBUF_ADDR (MMIO_BASE   + 0x1200000)
 
 extern char _pmem_start;

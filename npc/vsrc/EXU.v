@@ -11,7 +11,7 @@ module EXU (
   //注意去掉逗号！！！！！！！！！！！！！！
 );
   // 选择ALU第二操作数
-  wire  [31:0]in2_alu = alu_src ? rs2_alu : imm_alu;
+  wire  [31:0]in2_alu = alu_src ? imm_alu : rs2_alu;
 
   always @(*) begin
     alu_result = 32'b0;
@@ -32,7 +32,7 @@ module EXU (
         alu_result = rs1_alu + in2_alu;
       end
 
-      7'b0000011: begin // load（如 lw）
+      7'b0000011: begin // load（如 lw\lbu）
         if(func_alu == 3'b010 || func_alu == 3'b100)begin
           alu_ram = rs1_alu + in2_alu;
         end
