@@ -154,6 +154,7 @@ int main(int argc, char** argv) {
     top = new Vtop{contextp}; // Vtop* top
 
 #ifdef CONFIG_DIFFTEST
+    printf("\033[38;5;117mCONFIG_difftest_npc:ON\033[0m\n");
     size_t imge_size = pmem_init(argv[1]);
     // difftest debug上电后拉高复位
     top->rst = 1;
@@ -176,6 +177,7 @@ int main(int argc, char** argv) {
 #endif
 
 #ifdef LOG
+    printf("\033[38;5;117m日志打开\033[0m\n");
     itrace_fp = fopen("npc-itrace-log.txt","w");
     fprintf(itrace_fp, "Load image file : %s\n", argv[1]);
     if(!itrace_fp){

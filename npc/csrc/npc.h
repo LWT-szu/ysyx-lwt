@@ -15,7 +15,9 @@
 #define PMEM_BASE 0x80000000u
 #define SERIAL_PORT 0xa00003f8 // 串口（UART）0x10000000
 #define RTC_ADDR 0xa0000048
-//#define CONFIG_DIFFTEST
+#define RTC_ADDR_END 0xa0000050
+#define CONFIG_DIFFTEST
+// 注意如果使用外设（串口、时钟等需要关闭difftest）
 #define AUTO_RUN
 #ifdef __cplusplus
 extern "C" {

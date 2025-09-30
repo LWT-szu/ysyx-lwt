@@ -64,10 +64,16 @@ int printf(const char *fmt, ...)
         count++;
       }
     }
+    else if (*p == 'c')
+    {
+      char ch = (char)va_arg(args, int);
+      putch(ch);
+      count++;
+    }
     else
     {
       // 不支持的格式，原样输出
-      putch('%');
+      //putch('%');
       putch(*p);
       count += 2;
     }
@@ -114,6 +120,10 @@ int sprintf(char *out, const char *fmt, ...) {
         while (r > buf) *q++ = *--r;// 倒序输出到结果字符串
       } 
 
+      else if (*p == 'c') {
+        char ch = (char)va_arg(ap, int);
+        *q++ = ch;
+      }
       else {                // 其它格式直接输出
         *q++ = '%';
         *q++ = *p;
@@ -166,6 +176,9 @@ int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
           }
         }
         while (r > buf && written < n - 1) *q++ = *--r, written++;
+      } else if (*p == 'c') {
+        char ch = (char)va_arg(ap, int);
+        if (written < n - 1) *q++ = ch, written++;
       } else {
         if (written < n - 1) *q++ = '%', written++;
         if (written < n - 1) *q++ = *p, written++;

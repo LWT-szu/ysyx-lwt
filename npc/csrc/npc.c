@@ -138,8 +138,19 @@ void init_difftest(long img_size,int port){
     reg_curr_state(&cpu_snap);
     ref_difftest_regcpy(&cpu_snap,1);
 }
-
+// 跳过某些不需要对比的指令
+// 例如：访问串口、时钟等外设的指令
+static inline bool is_skip_difftest_inst(uint32_t addr){
+    return addr == SERIAL_PORT || addr == RTC_ADDR || addr < RTC_ADDR_END;
+}
 void difftest_step(){
+    npc_CPU_state dut_state;
+    reg_curr_state(&dut_state);
+
+    if(is_skip_difftest_inst(dut_state.pc)){
+        ref_difftest_regcpy(&dut_state, 1); // 1: DIFFTEST_TO_REF
+        return;
+    }
     // 1. 让 REF 执行一条指令
     ref_difftest_exec(1);
 
@@ -148,8 +159,7 @@ void difftest_step(){
     ref_difftest_regcpy(&ref_state, 0); // 0: DIFFTEST_TO_DUT
 
     // 3. 取 DUT 自己当前寄存器
-    npc_CPU_state dut_state;
-    reg_curr_state(&dut_state);
+    
 
     // 4. 比较：所有寄存器和PC
     for(int i = 0;i<32;i++){
@@ -166,12 +176,13 @@ void difftest_step(){
         return;
     }
 }
+// 获取当前时间，单位微秒
 static uint64_t boot_time = 0;
 uint64_t get_time_in_us()
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    uint64_t now = (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
-    if (boot_time == 0) boot_time = now;
+    uint64_t now = (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;// 秒转微秒再加上微秒
+    if (boot_time == 0) boot_time = now;// 记录启动时间
     return now - boot_time;
 }
