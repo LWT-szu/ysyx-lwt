@@ -9,6 +9,8 @@ module EXU (
   input [6:0]opcode_alu,
   input alu_src,              // 1: imm_alu, 0: rs2_alu
   input is_branch,
+  input [63:0]mcycle,           // cycle计数器
+  input csr_write,
 
   output reg [31:0]alu_result,// 寄存器写回
   output reg [31:0]alu_ram,    // 访存地址
@@ -115,6 +117,18 @@ module EXU (
           endcase
           branch_target = pc + imm_alu;
         end
+      end
+
+      7'b1110011: begin // csrrw
+        if(csr_write)begin
+          case (imm_alu[11:0])
+            12'hB00: alu_result = mcycle[31:0]; // mcycle
+            12'hB80: alu_result = mcycle[63:32]; // mcycleh
+            default: alu_result = 32'b0;
+          endcase
+        end
+        else 
+          alu_result = 32'b0;
       end
 
       default: alu_result = 32'b0;

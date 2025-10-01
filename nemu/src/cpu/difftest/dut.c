@@ -26,10 +26,10 @@
 #include <difftest-def.h>
 
 // 下面这四个是指向参考模型(REF)的函数指针，后续通过 dlsym 加载
-void (*ref_difftest_memcpy)(paddr_t addr, void *buf, size_t n, bool direction) = NULL;
-void (*ref_difftest_regcpy)(void *dut, bool direction) = NULL;
-void (*ref_difftest_exec)(uint64_t n) = NULL;
-void (*ref_difftest_raise_intr)(uint64_t NO) = NULL;
+void (*ref_difftest_memcpy)(paddr_t addr, void *buf, size_t n, bool direction) = NULL; // REF的内存同步
+void (*ref_difftest_regcpy)(void *dut, bool direction) = NULL; // REF的寄存器同步
+void (*ref_difftest_exec)(uint64_t n) = NULL;        // REF的单步执行
+void (*ref_difftest_raise_intr)(uint64_t NO) = NULL; // REF的异常注入
 
 #ifdef CONFIG_DIFFTEST
 
@@ -38,7 +38,7 @@ static int skip_dut_nr_inst = 0; // 要跳过的 DUT 指令数
 
 // this is used to let ref skip instructions which
 // can not produce consistent behavior with NEMU
-// 让 REF 跳过一次比较，通常遇到一些无法比对的指令时使用
+// 让 REF 跳过一次 DiffTest 检查（通常用于特殊指令、外设访问等）
 void difftest_skip_ref() {
   is_skip_ref = true;
   // If such an instruction is one of the instruction packing in QEMU
@@ -48,7 +48,7 @@ void difftest_skip_ref() {
   // already write some memory, and the incoming instruction in NEMU
   // will load that memory, we will encounter false negative. But such
   // situation is infrequent.
-  skip_dut_nr_inst = 0;
+  skip_dut_nr_inst = 0;// 取消追赶 QEMU PC 的过程
 }
 
 // this is used to deal with instruction packing in QEMU.
@@ -67,6 +67,12 @@ void difftest_skip_dut(int nr_ref, int nr_dut) {
   }
 }
 // 初始化 DiffTest，加载参考模型动态库，获取相关函数指针，初始化参考模型状态
+// 打开传入的动态库文件ref_so_file
+/*通过动态链接对动态库中的上述API符号进行符号解析和重定位, 返回它们的地址.
+  对REF的DIffTest功能进行初始化, 具体行为因REF而异.
+  将DUT的guest memory拷贝到REF中.
+  将DUT的寄存器状态拷贝到REF中.
+*/
 void init_difftest(char *ref_so_file, long img_size, int port) {
   assert(ref_so_file != NULL);
 

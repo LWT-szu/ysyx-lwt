@@ -14,8 +14,8 @@ VerilatedContext *contextp;
 Vtop *top;
 VerilatedVcdC *m_trace;
 int end; // 单步执行用的end
-FILE *itrace_fp = NULL;
-char str[128];
+FILE *itrace_fp = NULL;// 日志文件指针
+char str[128];// 反汇编字符串
 
 #ifdef NVBOARD
 #include <nvboard.h>
@@ -29,9 +29,10 @@ const char *reg[32] = {
     "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7",
     "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"};
 
+// n = -1表示无限执行
+// print_inst = 1表示打印指令
 void cpu_exec(int n,int print_inst){
     int count =0;
-    
     while (!contextp->gotFinish() && (n == -1 || count < n) ) {
         // 上升沿
         top->clk = 0;top->eval();contextp->timeInc(1);
@@ -46,9 +47,7 @@ void cpu_exec(int n,int print_inst){
                 npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
                 fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->inst_out, str);
                 #endif
-
                 printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
-
             }else if(npc_state.halt_ret == 0){
 #ifdef LOG
                 npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
@@ -63,7 +62,7 @@ void cpu_exec(int n,int print_inst){
                 npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
                 fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->inst_out, str);
 #endif
-                printf("\33[1;31mError instruction : %08x\33[0m\n", top->inst_out);
+                printf("\033[1;31mError instruction(main_debug) : %08x\33[0m\n", top->inst_out);
                 printf("\033[1;31mNPC : HIT BAD TRAP at pc = 0x%08x\033[0m\n", npc_state.halt_pc);
             }
             break;
@@ -78,15 +77,9 @@ void cpu_exec(int n,int print_inst){
             fprintf(itrace_fp,"0x%08x:      %08x      %s",top->pc,top->inst_out,str);
             /* ==================== 记录访存操作的地址和数据 ==================== */
             if(!top->is_load_type && !top->w_ram) fprintf(itrace_fp,"\n");
+            if (top->is_load_type)  fprintf(itrace_fp, "        [addr:%08x] [read_ram:%08x]\n", top->alu_ram, top->rdata_ram);
+            if (top->w_ram)         fprintf(itrace_fp, "        [addr:%08x] [write_ram:%08x]\n", top->alu_ram, top->rs2_data);
 
-            if (top->is_load_type)
-            {
-                fprintf(itrace_fp, "        [addr:%08x] [read_ram:%08x]\n", top->alu_ram, top->rdata_ram);
-            }
-            if (top->w_ram)
-            {
-                fprintf(itrace_fp, "        [addr:%08x] [write_ram:%08x]\n", top->alu_ram, top->rs2_data);
-            }
             /* ==================== 记录访存操作的地址和数据 ==================== */
             fflush(itrace_fp);
         }
@@ -100,14 +93,13 @@ void cpu_exec(int n,int print_inst){
                 fprintf(itrace_fp, "0x%08x:      %08x      %s", top->pc, top->inst_out, str);
                 /* ==================== 记录访存操作的地址和数据 ==================== */
                 if (!top->is_load_type && !top->w_ram) fprintf(itrace_fp,"\n");
-
-                if (top->is_load_type) fprintf(itrace_fp, "        [addr:%08x] [read_ram:%08x]\n", top->alu_ram, top->rdata_ram);
-                if (top->w_ram) fprintf(itrace_fp, "        [addr:%08x] [write_ram:%08x]\n", top->alu_ram,top->rs2_data);
+                if (top->is_load_type)  fprintf(itrace_fp, "        [addr:%08x] [read_ram:%08x]\n", top->alu_ram, top->rdata_ram);
+                if (top->w_ram)         fprintf(itrace_fp, "        [addr:%08x] [write_ram:%08x]\n", top->alu_ram,top->rs2_data);
                 /* ==================== 记录访存操作的地址和数据 ==================== */
                 fflush(itrace_fp);
             }
 #endif
-            uint8_t inst_byte[4]; // 两个字节分开输出
+            uint8_t inst_byte[4]; // 单步si打印,两个字节分开输出
             inst_byte[0] = top->inst_out & 0xFF;
             inst_byte[1] = (top->inst_out >> 8 ) & 0xFF;
             inst_byte[2] = (top->inst_out >> 16 ) & 0xFF;
@@ -132,7 +124,7 @@ void cpu_exec(int n,int print_inst){
     #ifdef CONFIG_DIFFTEST
             difftest_step();//把difftest_step()从打印/日志逻辑里拿到主循环每一轮的末尾,你一开始把他放主循环外面了
     #endif
-        count++;
+        count++;// 执行指令数+1
     }
 }
 
@@ -145,8 +137,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-
-    contextp = new VerilatedContext; // VerilatedContext *contextp
+    // 初始化Verilator仿真环境
+    contextp = new VerilatedContext; // VerilatedContext *contextp 
 #ifdef WAVE
     contextp->traceEverOn(true);
 #endif
@@ -169,21 +161,20 @@ int main(int argc, char** argv) {
     pmem_init(argv[1]);
 #endif
 
-    printf("load file%s\n",argv[1]);
-    
+    printf("\033[38;5;117mLoad_File:%s\033[0m\n", argv[1]);
 
 #ifdef CONFIG_NPC_ITRACE
     init_disassemble();
 #endif
 
 #ifdef LOG
-    printf("\033[38;5;117m日志打开\033[0m\n");
+    printf("\033[38;5;117m加载NPC日志\033[0m\n");
     itrace_fp = fopen("npc-itrace-log.txt","w");
-    fprintf(itrace_fp, "Load image file : %s\n", argv[1]);
     if(!itrace_fp){
         perror("npc-itrace-log.txt 创建失败");
-        exit(1);
-    } 
+        assert(0);
+    }
+    fprintf(itrace_fp, "Load image file : %s\n", argv[1]);
 #endif
 
 #ifdef NVBOARD
@@ -196,7 +187,7 @@ int main(int argc, char** argv) {
     top->trace(m_trace, 99);                    
     m_trace->open("wave.vcd");            
 #endif
-    end = 0;
+    end = 0;// 单步执行用的end
 
 #ifdef AUTO_RUN
     cpu_exec(-1, 0);

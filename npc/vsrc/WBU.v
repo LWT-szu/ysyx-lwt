@@ -15,13 +15,20 @@ module WBU (
   input is_branch,
   input is_lh_type,
   input is_lhu_type,
+  input csr_write,
+  input [11:0] csr_addr, // csr address
+  input [31:0] rs1_data, // csr write data
+  input [63:0] mcycle,           // cycle计数器
+  input [31:0] mvendorid, // ysyx
+  input [31:0] marchid,   // student_ID
 
   output wb_wen,
   output [4:0]wb_rd,
   output [31:0]wb_Rresult,//写回到寄存器的数据来自ALU,RAM
   output reg [31:0]next_pc,
   output reg branch_taken,
-  output reg [31:0]branch_target
+  output reg [31:0]branch_target,
+  output reg [63:0] wbu_mcycle // cycle计数器
   //注意去掉逗号！！！！！！！！！！！！！！
 );
   wire [7:0] lbu_byte;
@@ -51,11 +58,31 @@ module WBU (
     else if(is_lh_type)
       wb_Rresult_reg = {{16{lh_byte[15]}}, lh_byte} ; //lh  符号扩展
     else if(is_lhu_type)
-      wb_Rresult_reg = {16'b0, lh_byte} ;
+      wb_Rresult_reg = {16'b0, lh_byte} ;//lhu 零扩展
     else if  (jalr_en || Jal_en)
       wb_Rresult_reg = pc + 32'h4;//jalr jal
     else if(is_load_type)
       wb_Rresult_reg = ram_data;//lw
+    else if(csr_write)
+      case(csr_addr)
+        12'hB00: begin
+          wb_Rresult_reg = alu_data; // mcycle
+          wbu_mcycle = {mcycle[63:32], rs1_data}; // 低32位写入rs1_data
+        end
+
+        12'hB80: begin
+          wb_Rresult_reg = alu_data; // mcycleh
+          wbu_mcycle = {rs1_data , mcycle[31:0]}; // 高32位写入rs1_data
+        end
+
+        12'hF11: begin
+          wb_Rresult_reg = mvendorid; // mvendorid
+        end
+        12'hF12: begin
+          wb_Rresult_reg = marchid; // marchid
+        end
+        default: wb_Rresult_reg = 32'b0;
+      endcase
     else 
       wb_Rresult_reg = alu_data;//add sub addi
       //$display("wb_Rresult_reg = %08x",wb_Rresult_reg);

@@ -20,6 +20,6 @@
 bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc) {
   return !memcmp(ref_r, &cpu, sizeof(CPU_state));
 }
-
+// 将当前的所有状态同步到REF, 并在之后的执行中开启DiffTest.
 void isa_difftest_attach() {
 }

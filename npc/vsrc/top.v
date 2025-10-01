@@ -80,6 +80,7 @@ module top (
   wire wb_wen;             // 写回使能（WBU -> RegisterFile）
   wire [31:0] wb_Rresult;  // 写回数据（WBU -> RegisterFile）
   wire [4:0] wb_rd;        // 写回寄存器号（WBU -> RegisterFile）
+  wire csr_write;         // 是否为CSR寄存器写入
 
   reg [31:0] pc_reg = 32'h80000000;       //保存当前 PC值,实现顺序执行和跳转
   assign pc = pc_reg;      //pc_reg的“输出端口”
@@ -101,15 +102,33 @@ module top (
 
   assign a3 = RegisterFile_init.rf[13];//a3
   assign a4 = RegisterFile_init.rf[14];//a4
-
+//================CSR======================
+  reg [63:0] mcycle;//cycle计数器
+  reg [63:0] wbu_mcycle;//wbu cycle mcycle需要用一个中间变量暂存,然后在顶层模块赋值
+  reg [31:0] mvendorid = 32'h79737978;//ysyx 32'h79737978
+  reg [31:0] marchid = 32'd2025080201;//STUDENT_ID 32'h017EB189 32'd2025080201
+//================CSR======================
   
   always @(posedge clk or posedge rst) begin
     
-    if (rst==1)
-        pc_reg <= 32'h80000000;
-    else
-        pc_reg <= next_pc;
+    if (rst==1)begin
+      pc_reg <= 32'h80000000;
+      mcycle <= 0;
+    end else if(csr_write) begin
+      mcycle <= wbu_mcycle;
+      pc_reg <= next_pc;
+    end else begin
+      pc_reg <= next_pc;
+      mcycle <= mcycle + 1;
+    end
+        
     //$display("[PC_DBG] t=%0t rst=%0d pc_reg=%08x", $time, rst, pc_reg);
+    //注意跳转的情况，如果跳到了其他地方，这里不会打印
+/*
+    if(pc < 32'h80000030 && pc > 32'h80000014)begin
+      $display("PC: %08x, inst: %08x, csr_write: %d, next_pc: %08x, mcycle: %08x, mcycleh: %08x", pc_reg, inst_out, csr_write, next_pc, mcycle[31:0], mcycle[63:32]);
+    end
+    */
   end
 
   //取指
@@ -143,7 +162,8 @@ module top (
   .is_sh_type(is_sh_type),
   .is_branch(is_branch),
   .is_lh_type(is_lh_type),
-  .is_lhu_type(is_lhu_type)
+  .is_lhu_type(is_lhu_type),
+  .csr_write(csr_write)
 
   //注意去掉逗号！！！！！！！！！！！！！！
 );
@@ -152,13 +172,15 @@ module top (
   EXU EXU_init(
   .pc(pc),
   .imm_alu(imm),//imm
-  .rs1_alu(rs1_data),
+  .rs1_alu(rs1_data),//x[rs1]
   .rs2_alu(rs2_data),//x[rs2]
   .alu_src(add_alu),
   .func_alu(func),
   .func7_alu(func7),
   .opcode_alu(opcode),
   .is_branch(is_branch),
+  .mcycle(mcycle),           // cycle计数器
+  .csr_write(csr_write),
 
   .alu_result(alu_result), //output
   .alu_ram(alu_ram),
@@ -201,13 +223,20 @@ module top (
   .is_branch(is_branch),
   .is_lh_type(is_lh_type),
   .is_lhu_type(is_lhu_type),
+  .csr_write(csr_write),
+  .csr_addr(imm[11:0]), // csr address
+  .rs1_data(rs1_data), // csr write data
+  .mcycle(mcycle),
+  .mvendorid(mvendorid),
+  .marchid(marchid),
 
   .wb_wen(wb_wen),//  output  wb_wen = reg_en
   .wb_rd(wb_rd),
   .wb_Rresult(wb_Rresult),//写回到寄存器的数据来自ALU,RAM
   .next_pc(next_pc),
   .branch_taken(branch_taken),
-  .branch_target(branch_target)
+  .branch_target(branch_target),
+  .wbu_mcycle(wbu_mcycle)
   //注意去掉逗号！！！！！！！！！！！！！！
 );
 

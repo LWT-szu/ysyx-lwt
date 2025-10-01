@@ -1,5 +1,6 @@
 #include <am.h>
 #include <klib-macros.h>
+#include <klib.h>
 #define SERIAL_PORT 0xa00003f8
 
 extern char _heap_start;
@@ -22,6 +23,13 @@ void halt(int code) {
 } 
 
 void _trm_init() {
+  uint32_t ysyx_ascii,stuid;
+  uint32_t dummy = 0;
+  // ysyx_ascii = 'ysyx' = 0x79737978
+  asm volatile("csrrw %0,mvendorid,%1" : "=r"(ysyx_ascii) : "r"(dummy));//
+  asm volatile("csrrw %0,marchid,%1" : "=r"(stuid) : "r"(dummy));
+  printf("ysyx_ascii = 0x%x, stuid = 0d%d\n", ysyx_ascii, stuid);
+
   int ret = main(mainargs);
   halt(ret);
 }

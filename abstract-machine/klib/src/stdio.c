@@ -70,6 +70,29 @@ int printf(const char *fmt, ...)
       putch(ch);
       count++;
     }
+    else if(*p == 'x'){
+      unsigned int num = va_arg(args, unsigned int);
+      // 转字符串逆序暂存
+      char buf[16];
+      int i = 0;
+      if (num == 0)
+        buf[i++] = '0';
+      while (num)
+      {
+        int digit = num % 16;
+        if (digit < 10)
+          buf[i++] = '0' + digit;
+        else
+          buf[i++] = 'a' + (digit - 10);
+        num /= 16;
+      }
+      // 倒序输出
+      while (i--)
+      {
+        putch(buf[i]);
+        count++;
+      }
+    }
     else
     {
       // 不支持的格式，原样输出

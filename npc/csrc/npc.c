@@ -110,6 +110,7 @@ void init_difftest(long img_size,int port){
     assert(handle);
 
     // --------- 下面是获取各个 DiffTest 接口的函数指针 ---------
+    // verilator编译的变量类型声明与nemu不一致
     // 用于在 REF 和 DUT 之间同步内存内容
     ref_difftest_memcpy = reinterpret_cast < void (*)(paddr_t, void *, size_t, bool)> (dlsym(handle, "difftest_memcpy"));
     assert(ref_difftest_memcpy);
@@ -130,23 +131,25 @@ void init_difftest(long img_size,int port){
     assert(ref_difftest_init);
 
     // 初始化 REF
-    ref_difftest_init(port);
+    ref_difftest_init(port);// 初始化参考模型
+    // 用于将 DUT 的镜像内容（通常是指令和数据）拷贝到 REF
     ref_difftest_memcpy(PMEM_BASE, (uint8_t *)pmem, img_size, 1); // 1: DIFFTEST_TO_REF
 
     // 寄存器同步：把 DUT 的寄存器同步到 REF
     npc_CPU_state cpu_snap;
     reg_curr_state(&cpu_snap);
-    ref_difftest_regcpy(&cpu_snap,1);
+    ref_difftest_regcpy(&cpu_snap, 1); // 拷贝初始寄存器状态到 REF!!!!!!
 }
 // 跳过某些不需要对比的指令
 // 例如：访问串口、时钟等外设的指令
 static inline bool is_skip_difftest_inst(uint32_t addr){
-    return addr == SERIAL_PORT || addr == RTC_ADDR || addr < RTC_ADDR_END;
+    return addr == SERIAL_PORT || addr == RTC_ADDR || addr == RTC_ADDR_END;
 }
 void difftest_step(){
-    npc_CPU_state dut_state;
+    npc_CPU_state dut_state;// DUT 当前寄存器状态
     reg_curr_state(&dut_state);
-
+    // 如果当前指令不需要进行 DiffTest 比对，直接把 DUT 的状态同步到 REF
+    // 这样 REF 就“跳过”了这条指令
     if(is_skip_difftest_inst(dut_state.pc)){
         ref_difftest_regcpy(&dut_state, 1); // 1: DIFFTEST_TO_REF
         return;
@@ -159,24 +162,30 @@ void difftest_step(){
     ref_difftest_regcpy(&ref_state, 0); // 0: DIFFTEST_TO_DUT
 
     // 3. 取 DUT 自己当前寄存器
-    
+
+    // 反汇编当前指令
+    uint32_t inst = top->inst_out;
+    char disasm_str[64];
+    npc_disassemble(disasm_str, sizeof(disasm_str), dut_state.pc, inst);
 
     // 4. 比较：所有寄存器和PC
     for(int i = 0;i<32;i++){
         if(dut_state.gpr[i] != ref_state.gpr[i]){
-            printf("Difftest Fail: reg[%d] NPC=0x%08x REF=0x%08x\n",i,dut_state.gpr[i],ref_state.gpr[i]);
+            printf("\033[1;33m[DIFFTEST]: reg[%d] NPC=0x%08x REF=0x%08x\033[0m\n", i, dut_state.gpr[i], ref_state.gpr[i]);
+            printf("\033[1;33m[DIFFTEST] At LAST PC=0x%08x, INST=0x%08x, %s\033[0m\n", dut_state.pc, inst, disasm_str);
             npc_set_state(NPC_ABORT,dut_state.pc,1);
             return;
         }
     }
 
     if(dut_state.pc != ref_state.pc){
-        printf("Difftest fail:PC mismatch NPC=0x%08x REF=0x%08x\n",dut_state.pc,ref_state.pc);
+        printf("\033[1;33m[DIFFTEST]:PC mismatch NPC=0x%08x REF=0x%08x\033[0m\n", dut_state.pc, ref_state.pc);
+        printf("\033[1;33m[DIFFTEST] At PC=0x%08x, INST=0x%08x, %s\033[0m\n", dut_state.pc, inst, disasm_str);
         npc_set_state(NPC_ABORT,dut_state.pc,1);
         return;
     }
 }
-// 获取当前时间，单位微秒
+// 获取当前时间，单位微秒 like nemu
 static uint64_t boot_time = 0;
 uint64_t get_time_in_us()
 {
