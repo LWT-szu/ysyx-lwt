@@ -6,7 +6,7 @@ module WBU (
   input [31:0]alu_data,//从alu中读取数据
   input [31:0]alu_addr,//从alu中读取的地址
   input [31:0]ram_data,//从ram中读取数据
-  input [4:0]waddr,
+  input [3:0]waddr,
   input reg_en,
   input Jal_en,
   input jalr_en,
@@ -23,7 +23,7 @@ module WBU (
   input [31:0] marchid,   // student_ID
 
   output wb_wen,
-  output [4:0]wb_rd,
+  output [3:0]wb_rd,
   output [31:0]wb_Rresult,//写回到寄存器的数据来自ALU,RAM
   output reg [31:0]next_pc,
   output reg branch_taken,

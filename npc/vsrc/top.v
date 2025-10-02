@@ -38,7 +38,7 @@ module top (
   //打印寄存器看看
   genvar i;
   generate
-    for (i = 0; i < 32; i = i + 1) begin : rf_export
+    for (i = 0; i < 16; i = i + 1) begin : rf_export
       assign rf[i] = RegisterFile_init.rf[i];
     end
   endgenerate
@@ -47,10 +47,10 @@ module top (
   //wire [31:0]inst_out;     // IFU 输出的指令（传给 IDU）
 
   wire [31:0]imm;          // 立即数解码结果（IDU -> EXU）
-  wire [4:0]rd;            // 写回寄存器号（IDU -> WBU）
-  wire [4:0]rs1;           // 源寄存器号（IDU -> RegisterFile）
+  wire [3:0]rd;            // 写回寄存器号（IDU -> WBU）
+  wire [3:0]rs1;           // 源寄存器号（IDU -> RegisterFile）
 
-  wire [4:0]rs2;
+  wire [3:0]rs2;
 
   wire [2:0]func;          // 功能码（IDU -> EXU）
   wire [6:0]func7;
@@ -79,7 +79,7 @@ module top (
 
   wire wb_wen;             // 写回使能（WBU -> RegisterFile）
   wire [31:0] wb_Rresult;  // 写回数据（WBU -> RegisterFile）
-  wire [4:0] wb_rd;        // 写回寄存器号（WBU -> RegisterFile）
+  wire [3:0] wb_rd;        // 写回寄存器号（WBU -> RegisterFile）
   wire csr_write;         // 是否为CSR寄存器写入
 
   reg [31:0] pc_reg = 32'h80000000;       //保存当前 PC值,实现顺序执行和跳转
@@ -261,17 +261,17 @@ endmodule
 module RegisterFile(
   input clk,
   input [31:0]pc,
-  input [4:0]rs1,
-  input [4:0]rs2,
+  input [3:0]rs1,
+  input [3:0]rs2,
   input [31:0] reg_wdata,     // 接收要写入的alu|ram数据
-  input [4:0] reg_waddr,      // 接收要写入的地址rd
+  input [3:0] reg_waddr,      // 接收要写入的地址rd
   input wen,                  // 写使能
   input [31:0]inst_out,
   output  [31:0] rs1_data,
   output  [31:0] rs2_data
 );
-  // rf为寄存器数组，大小为32，每个寄存器宽度为32
-  reg[31:0] rf[31:0];
+  // rf为寄存器数组，大小为16，每个寄存器宽度为32
+  reg[31:0] rf[15:0];
   // 写操作：时钟上升沿，当wen为1时，将wdata写入waddr对应的寄存器
   always @(posedge clk) begin
     //$display("reg_wdata=0x%08x",reg_wdata);
