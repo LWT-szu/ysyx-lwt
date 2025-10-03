@@ -44,8 +44,8 @@ module top (
   endgenerate
 
   wire [31:0]next_pc;      // 下一条指令的 PC，由 WBU 产生
-  //wire [31:0]ifu_data;//存储器发送的数据 MEM-->IFU
-  //wire [31:0]infu_raddr;//读地址IFU-->MEM
+  //wire [31:0]ifu_rdata;//存储器发送的数据 MEM-->IFU
+  //wire [31:0]ifu_raddr;//读地址IFU-->MEM
 
   //wire [31:0]inst_out;     // IFU 输出的指令（传给 IDU）
 
@@ -138,17 +138,23 @@ module top (
     end
     */
   end
-
-
+/*
+  MEM MEM_init (
+  .clk(clk),
+  .rst(rst),
+  .ifu_raddr(ifu_raddr),
+  .ifu_rdata(ifu_rdata)
+);
+*/
   //取指
   IFU IFU_init(
     .clk(clk),
     .rst(rst),
     .pc(pc),
-    //.ifu_data(ifu_data),//存储器发送的数据
+    //.ifu_rdata(ifu_rdata),//存储器发送的数据
     //.inst_in(inst),
 
-    //.infu_raddr(infu_raddr),//请求读存储器地址
+    //.ifu_raddr(ifu_raddr),//请求读存储器地址
     .inst_out(inst_out),//输出指令
     .inst_valid(inst_valid)
   );

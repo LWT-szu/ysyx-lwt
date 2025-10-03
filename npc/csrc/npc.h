@@ -9,7 +9,7 @@
 #define ANSI_NONE "\33[0m"
 //#define CONFIG_NPC_MTRACE
 #define CONFIG_NPC_ITRACE
-//#define LOG
+#define LOG
 #define RAM_MODE_BIN 1
 #define SI_TRACE
 #define PMEM_BASE 0x80000000u
