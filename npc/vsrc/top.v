@@ -44,6 +44,9 @@ module top (
   endgenerate
 
   wire [31:0]next_pc;      // 下一条指令的 PC，由 WBU 产生
+  //wire [31:0]ifu_data;//存储器发送的数据 MEM-->IFU
+  //wire [31:0]infu_raddr;//读地址IFU-->MEM
+
   //wire [31:0]inst_out;     // IFU 输出的指令（传给 IDU）
 
   wire [31:0]imm;          // 立即数解码结果（IDU -> EXU）
@@ -68,6 +71,8 @@ module top (
   wire is_branch;
   wire is_lh_type;
   wire is_lhu_type;
+
+  wire inst_valid;//指令是否有效
 
   wire [31:0]rs1_data;     // 源寄存器数据（RegisterFile -> EXU）
   //wire [31:0]rs2_data;
@@ -114,14 +119,17 @@ module top (
     if (rst==1)begin
       pc_reg <= 32'h80000000;
       mcycle <= 0;
-    end else if(csr_write) begin
+      //$display("Top Reset: pc=%08x rst=%d", pc_reg,rst);
+    end else if(csr_write && inst_valid) begin
       mcycle <= wbu_mcycle;
       pc_reg <= next_pc;
-    end else begin
+      //$display("Top Reset: inst_valid=%d ", inst_valid);
+    end else if(inst_valid) begin
       pc_reg <= next_pc;
       mcycle <= mcycle + 1;
+      //$display("Top Reset: inst_valid=%d ", inst_valid);
     end
-        
+      
     //$display("[PC_DBG] t=%0t rst=%0d pc_reg=%08x", $time, rst, pc_reg);
     //注意跳转的情况，如果跳到了其他地方，这里不会打印
 /*
@@ -131,17 +139,25 @@ module top (
     */
   end
 
+
   //取指
   IFU IFU_init(
     .clk(clk),
+    .rst(rst),
     .pc(pc),
+    //.ifu_data(ifu_data),//存储器发送的数据
     //.inst_in(inst),
-    .inst_out(inst_out)//
+
+    //.infu_raddr(infu_raddr),//请求读存储器地址
+    .inst_out(inst_out),//输出指令
+    .inst_valid(inst_valid)
   );
   //译码
   IDU IDU_init(
   .inst_ym(inst_out),
   .pc(pc),
+  .inst_valid(inst_valid),
+  .clk(clk),
 
   .IDU_imm(imm),//
   .IDU_rd(rd),

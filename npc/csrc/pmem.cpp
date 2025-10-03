@@ -9,6 +9,8 @@ uint32_t pmem[(MEM_SIZE)];
 // 可以用PC和ALU计算的结果来来访问lw,lbu
 extern "C" int pmem_read(int raddr, int pc, int valid, int wen_ram)
 {
+    //if (raddr == 0) return ; 
+    //printf("pmem_read: raddr=0x%08x pc=0x%08x\n", raddr, pc);
     if (raddr < PMEM_BASE)
     {
         printf("Error: blow base raddr=0x%08x base=0x%08x pc=0x%08x\n", raddr, PMEM_BASE, pc);
@@ -45,6 +47,7 @@ extern "C" int pmem_read(int raddr, int pc, int valid, int wen_ram)
     }
 #endif
     /* ==================== mtrace ==================== */
+    //printf("pc=0x%08x pmem_read[%u][%08x] = 0x%08x\n", pc, idx, idx, pmem[idx]);
     return pmem[(off & ~0x3u) >> 2]; // 4 字节对齐的地址
 }
 

@@ -48,6 +48,7 @@ void cpu_exec(int n,int print_inst){
                 fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->inst_out, str);
                 #endif
                 printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
+
             }else if(npc_state.halt_ret == 0){
 #ifdef LOG
                 npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
@@ -145,6 +146,12 @@ int main(int argc, char** argv) {
     contextp->commandArgs(argc, argv);
     top = new Vtop{contextp}; // Vtop* top
 
+#ifdef WAVE
+    m_trace = new VerilatedVcdC; // VerilatedVcdC* m_trace
+    top->trace(m_trace, 99);
+    m_trace->open("wave.vcd");
+#endif
+
 #ifdef CONFIG_DIFFTEST
     printf("\033[38;5;117mCONFIG_difftest_npc:ON\033[0m\n");
     size_t imge_size = pmem_init(argv[1]);
@@ -158,6 +165,17 @@ int main(int argc, char** argv) {
     //printf("[DEBUG] pc = 0x%08x\n",top->pc);
     init_difftest(imge_size, 0);
 #else
+    top->rst = 1;
+    top->clk = 0;top->eval();contextp->timeInc(1);
+#ifdef WAVE
+    m_trace->dump(contextp->time());
+#endif
+    top->clk = 1;top->eval();contextp->timeInc(1);
+    // 拉低复位，进入正常运行
+    top->rst = 0;
+#ifdef WAVE
+    m_trace->dump(contextp->time());
+#endif
     pmem_init(argv[1]);
 #endif
 
@@ -181,12 +199,13 @@ int main(int argc, char** argv) {
     nvboard_bind_all_pins(top);  
     nvboard_init();             
 #endif
-
+/*
 #ifdef WAVE
     m_trace = new VerilatedVcdC; // VerilatedVcdC* m_trace
     top->trace(m_trace, 99);                    
     m_trace->open("wave.vcd");            
 #endif
+*/
     end = 0;// 单步执行用的end
 
 #ifdef AUTO_RUN

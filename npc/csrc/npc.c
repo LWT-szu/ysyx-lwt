@@ -60,6 +60,11 @@ void init_disassemble(){
 }
 
 void npc_disassemble(char *str,int size,uint32_t pc,uint32_t inst){
+    if (inst == 0x00000000)
+    {
+        snprintf(str, size, "wait invalid");
+        return;
+    }
     cs_insn *insn;
     uint8_t bytes[4];
     bytes[0] = inst & 0xff;
