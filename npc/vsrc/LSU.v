@@ -1,18 +1,19 @@
 import "DPI-C" function void pmem_write(
   input  int waddr, input int  wdata, input byte wmask,input int pc);
   
-module ISU (
+module LSU (
     input clk,
     input valid,              // 是否有访存请求  ym
     input wen_ram,                // 是否是写入 ym Write_enable
-    input [31:0]raddr_ram,        // 读地址EXU
-    input [31:0]waddr_ram,        // 写地址EXU
+    input [31:0]raddr_ram,        // 读地址EXU lsu_addr
+    input [31:0]waddr_ram,        // 写地址EXU lsu_addr
     input [31:0]wdata_ram,        //  要写入的数据gpr
     input is_sb_type,
     input is_sh_type,
     input is_lh_type,
     input [31:0]pc,
     output reg [31:0]rdata_ram
+    //output reg load_wait // load指令等待信号
 
 );
     wire [7:0]wmask;
@@ -27,14 +28,15 @@ module ISU (
         if(valid && !wen_ram)begin
             //$display("---------ISU------------");
             rdata_ram = pmem_read(raddr_ram,pc,{31'b0, valid},{31'b0, wen_ram});// 有读请求时
+            //load_wait <= 1'b1;
             //$display("---------ISU------------");
         end
         else begin
+            //load_wait <= 1'b0;
             rdata_ram = 0;
         end
 
         if(is_sb_type)begin//sb
-            
             case (waddr_ram[1:0])
                 2'b00:begin
                     data_ram = {24'b0,wdata_ram[7:0]};
@@ -50,7 +52,6 @@ module ISU (
                 end 
                 default: data_ram =32'b0;
             endcase
-
         end else if (is_sh_type) begin//sh
         case (waddr_ram[1:0])
             2'b00: data_ram = {16'b0, wdata_ram[15:0]};

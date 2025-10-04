@@ -75,7 +75,7 @@ void cpu_exec(int n,int print_inst){
         // 实现命令c的日志加载rdata_ram
         if(n==-1 && itrace_fp){
             npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
-            fprintf(itrace_fp,"0x%08x:      %08x      %s",top->pc,top->inst_out,str);
+            fprintf(itrace_fp,"0x%08x:      %08x      %s",top->pc,top->ifu_rdata,str);
             /* ==================== 记录访存操作的地址和数据 ==================== */
             if(!top->is_load_type && !top->w_ram) fprintf(itrace_fp,"\n");
             if (top->is_load_type)  fprintf(itrace_fp, "        [addr:%08x] [read_ram:%08x]\n", top->alu_ram, top->rdata_ram);
