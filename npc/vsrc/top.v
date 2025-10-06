@@ -5,6 +5,8 @@ module top (
   //input [31:0]inst,
   output w_ram,
   output is_load_type,
+  output inst_valid,
+  output reg_load_wait,
   output [31:0]pc,
   output [31:0]ifu_rdata,
 
@@ -73,9 +75,11 @@ module top (
   wire is_lh_type;
   wire is_lhu_type;
 
-  wire inst_valid;//指令是否有效
+  //wire inst_valid;//指令是否有效
   wire raddr_ready;
-  //wire load_wait; // load指令等待信号
+  wire load_wait; // load指令等待信号
+  wire state_wait;
+  //wire reg_load_wait; //load指令next等待信号WBU->RegFile
 
   wire [31:0]rs1_data;     // 源寄存器数据（RegisterFile -> EXU）
   //wire [31:0]rs2_data;
@@ -97,19 +101,17 @@ module top (
   
   assign zero = RegisterFile_init.rf[0];
   assign ra = RegisterFile_init.rf[1];
-
   assign sp = RegisterFile_init.rf[2];//sp
   assign gp = RegisterFile_init.rf[3];//gp
   assign tp = RegisterFile_init.rf[4];//tp
   assign s0 = RegisterFile_init.rf[8];//s0
   assign s1 = RegisterFile_init.rf[9];//s1
-
   assign a0 = RegisterFile_init.rf[10];//a0
   assign a1 = RegisterFile_init.rf[11];//a1
-
-
+  assign a2 = RegisterFile_init.rf[12];//a2
   assign a3 = RegisterFile_init.rf[13];//a3
   assign a4 = RegisterFile_init.rf[14];//a4
+  assign a5 = RegisterFile_init.rf[15];//a5
 //================CSR======================
   reg [63:0] mcycle;//cycle计数器
   reg [63:0] wbu_mcycle;//wbu cycle mcycle需要用一个中间变量暂存,然后在顶层模块赋值
@@ -123,11 +125,12 @@ module top (
       pc_reg <= 32'h80000000;
       mcycle <= 0;
       //$display("Top Reset: pc=%08x rst=%d", pc_reg,rst);
-    end else if(csr_write && inst_valid ) begin
+    end else if(csr_write && state_wait && !load_wait) begin
       mcycle <= wbu_mcycle;
       pc_reg <= next_pc;
       //$display("Top Reset: inst_valid=%d ", inst_valid);
-    end else if(inst_valid) begin
+      // 只有在没有load等待、且指令有效时才允许更新PC
+    end else if(state_wait && !load_wait) begin
       pc_reg <= next_pc;
       mcycle <= mcycle + 1;
       //$display("Top Reset: inst_valid=%d ", inst_valid);
@@ -144,12 +147,14 @@ module top (
 
   MEM MEM_init (
   .clk(clk),
-  //.rst(rst),
-  .ifu_raddr(pc),
+  .ifu_raddr(ifu_raddr),
   .inst_valid(inst_valid),
   .raddr_ready(raddr_ready),
+  .load_wait(load_wait),
+  .state_wait(state_wait),
   
-  .ifu_rdata(ifu_rdata)
+  .ifu_rdata(ifu_rdata),
+  .reg_load_wait(reg_load_wait)
 );
 
 
@@ -158,19 +163,19 @@ module top (
     .clk(clk),
     .rst(rst),
     .pc(pc),
-    .ifu_rdata(ifu_rdata),
-    //.load_wait(load_wait),// load指令等待信号
-    //.ifu_rdata(ifu_rdata),//存储器发送的数据
-    //.inst_in(inst),
+    .ifu_rdata(ifu_rdata),//存储器发送的数据
+    .load_wait(load_wait),// load指令等待信号
 
-    .ifu_raddr(ifu_raddr),//请求读存储器地址
+
+    .ifu_raddr(ifu_raddr),//请求读存储器地址 pc
     .inst_out(inst_out),//输出指令
     .inst_valid(inst_valid),
-    .raddr_ready(raddr_ready)
+    .raddr_ready(raddr_ready),
+    .state_wait(state_wait)
   );
   //译码
   IDU IDU_init(
-  .inst_ym(ifu_rdata),//inst_out
+  .inst_ym(inst_out),//inst_out
   .pc(pc),
   .inst_valid(inst_valid),
   .clk(clk),
@@ -224,6 +229,7 @@ module top (
 //访存
   LSU LSU_init(
     .clk(clk),
+    .rst(rst),
     .valid(ls_vaild),         // 是否有访存请求
     .wen_ram(w_ram),          // 是否是写入
     .raddr_ram(alu_ram),      // 读地址lw,lbu????????
@@ -233,8 +239,8 @@ module top (
     .is_sh_type(is_sh_type),
     .is_lh_type(is_lh_type),
     .pc(pc),
-    .rdata_ram(rdata_ram)     // out读取内存内容
-    //.load_wait(load_wait)
+    .rdata_ram(rdata_ram),     // out读取内存内容
+    .load_wait(load_wait)
 );
 
 
@@ -262,6 +268,9 @@ module top (
   .mcycle(mcycle),
   .mvendorid(mvendorid),
   .marchid(marchid),
+  .reg_load_wait(reg_load_wait),
+  .state_wait(state_wait),
+  .load_wait(load_wait),
 
   .wb_wen(wb_wen),//  output  wb_wen = reg_en
   .wb_rd(wb_rd),
@@ -281,7 +290,10 @@ module top (
   .reg_wdata(wb_Rresult),     // 写入ALU,RAM数据
   .reg_waddr(wb_rd),          // 写入地址rd
   .wen(wb_wen),               // 写使能
-  .inst_out(inst_out),
+  .ifu_rdata(ifu_rdata),
+  .inst_valid(inst_valid),
+  .reg_load_wait(reg_load_wait),
+  
   .rs1_data(rs1_data),
   .rs2_data(rs2_data)
   //注意去掉逗号！！！！！！！！！！！！！！
@@ -299,7 +311,10 @@ module RegisterFile(
   input [31:0] reg_wdata,     // 接收要写入的alu|ram数据
   input [3:0] reg_waddr,      // 接收要写入的地址rd
   input wen,                  // 写使能
-  input [31:0]inst_out,
+  input [31:0]ifu_rdata,
+  input inst_valid,
+  input reg_load_wait,
+
   output  [31:0] rs1_data,
   output  [31:0] rs2_data
 );
@@ -309,8 +324,9 @@ module RegisterFile(
   always @(posedge clk) begin
     //$display("reg_wdata=0x%08x",reg_wdata);
     //$display("reg_waddr=%05b",reg_waddr);
-    if (wen && reg_waddr != 0) begin
-      rf[reg_waddr] <= reg_wdata; // 0号寄存器保护
+    if (reg_load_wait || (wen && reg_waddr != 0)) begin
+      rf[reg_waddr] <= reg_wdata; // 0号寄存器保护  
+      $display("Write Reg: pc=%08x, x[%0d]=%08x", pc, reg_waddr, reg_wdata);
       //$display("a0=0x%08x",rf[10]);
     end
 
@@ -319,10 +335,10 @@ module RegisterFile(
   assign rs1_data = (rs1 == 0) ? 32'b0 : rf[rs1];
   assign rs2_data = (rs2 == 0) ? 32'b0 : rf[rs2];//如果 rs2 没有用到或者等于 0 号寄存器，输出就是 0
   always @(*) begin
-    if(inst_out == 32'h00100073 && rf[10] == 32'b0)begin
+    if(ifu_rdata == 32'h00100073 && rf[10] == 32'b0)begin
       halt(pc,0);
     end   
-    else if(inst_out == 32'h00100073 && rf[10] == 32'b1)begin
+    else if(ifu_rdata == 32'h00100073 && rf[10] == 32'b1)begin
       $display("a0=0x%08x",rf[10]);
       halt(pc,1);
     end

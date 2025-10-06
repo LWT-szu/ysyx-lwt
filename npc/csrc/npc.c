@@ -62,7 +62,7 @@ void init_disassemble(){
 void npc_disassemble(char *str,int size,uint32_t pc,uint32_t inst){
     if (inst == 0x00000000)
     {
-        snprintf(str, size, "wait invalid");
+        snprintf(str, size, "invalid");
         return;
     }
     cs_insn *insn;
@@ -169,7 +169,7 @@ void difftest_step(){
     // 3. 取 DUT 自己当前寄存器
 
     // 反汇编当前指令
-    uint32_t inst = top->inst_out;
+    uint32_t inst = top->ifu_rdata;
     char disasm_str[64];
     npc_disassemble(disasm_str, sizeof(disasm_str), dut_state.pc, inst);
 
