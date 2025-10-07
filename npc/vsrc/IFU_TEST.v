@@ -10,19 +10,18 @@ module IFU (
 );
   typedef enum reg [0:0] {IDLE=1'b0, WAIT=1'b1} state_t;
   state_t state;
-  always @(posedge clk) begin//
+  assign ifu_raddr = pc;
+  always @(posedge clk) begin
     if (rst) begin
       state <= IDLE;
       inst_valid <= 0;
       inst_out <= 0;
       raddr_ready <= 1;
-      ifu_raddr <= 32'h80000000;
       //$display("rst = %d",rst);
       //$display("rst ifu_raddr = 0x%08x",ifu_raddr);
     end else begin
       case (state)
         IDLE: begin
-          ifu_raddr <= pc;
           inst_valid <= 1;
           inst_out <= 0;
           raddr_ready <= 0;

@@ -145,7 +145,7 @@ module top (
   MEM MEM_init (
   .clk(clk),
   //.rst(rst),
-  .ifu_raddr(pc),
+  .ifu_raddr(ifu_raddr),
   .inst_valid(inst_valid),
   .raddr_ready(raddr_ready),
   
@@ -158,10 +158,7 @@ module top (
     .clk(clk),
     .rst(rst),
     .pc(pc),
-    .ifu_rdata(ifu_rdata),
-    //.load_wait(load_wait),// load指令等待信号
-    //.ifu_rdata(ifu_rdata),//存储器发送的数据
-    //.inst_in(inst),
+    .ifu_rdata(ifu_rdata),//存储器发送的数据
 
     .ifu_raddr(ifu_raddr),//请求读存储器地址
     .inst_out(inst_out),//输出指令
