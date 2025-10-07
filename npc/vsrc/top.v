@@ -326,7 +326,7 @@ module RegisterFile(
     //$display("reg_waddr=%05b",reg_waddr);
     if (reg_load_wait || (wen && reg_waddr != 0)) begin
       rf[reg_waddr] <= reg_wdata; // 0号寄存器保护  
-      $display("Write Reg: pc=%08x, x[%0d]=%08x", pc, reg_waddr, reg_wdata);
+      //$display("Write Reg: pc=%08x, x[%0d]=%08x", pc, reg_waddr, reg_wdata);
       //$display("a0=0x%08x",rf[10]);
     end
 
@@ -339,7 +339,7 @@ module RegisterFile(
       halt(pc,0);
     end   
     else if(ifu_rdata == 32'h00100073 && rf[10] == 32'b1)begin
-      $display("a0=0x%08x",rf[10]);
+      //$display("a0=0x%08x",rf[10]);
       halt(pc,1);
     end
   end

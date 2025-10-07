@@ -36,7 +36,6 @@ extern "C" int pmem_read(int raddr, int pc, int valid, int wen_ram)
         printf("Error: pmem_read access out of range! raddr=0x%x idx=%d\n", raddr, idx);
         npc_set_state(NPC_ABORT, pc, 1);
         printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
-        return 0; // 返回0而不是崩溃
     }
     /* ==================== mtrace ==================== */
 #ifdef CONFIG_NPC_MTRACE

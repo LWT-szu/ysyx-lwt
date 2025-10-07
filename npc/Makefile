@@ -87,7 +87,7 @@ sim: $(BIN)
 all: $(BIN)
 
 run: $(BIN)
-#	./$(BIN) sum.hex +trace
+#	./$(BIN) /home/lwt/ysyx-workbench/npc/test.hex +trace
 	$(call git_commit, "sim RTL")
 	./$(BIN) $(IMAGE) +trace  
 # 运行指定的镜像

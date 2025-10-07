@@ -36,7 +36,6 @@ void cpu_exec(int n,int print_inst){
     while (!contextp->gotFinish() && (n == -1 || count < n) ) {
         // 上升沿
         top->clk = 0;top->eval();contextp->timeInc(1);
-        //printf("MAIN 上升沿 ⬆ \n");
 #ifdef WAVE
         m_trace->dump(contextp->time()); // 当前仿真时间下所有信号的值
 #endif
@@ -45,15 +44,15 @@ void cpu_exec(int n,int print_inst){
         if(npc_state.state == NPC_END || npc_state.state == NPC_ABORT){
             if(npc_state.state == NPC_ABORT){
                 #ifdef LOG
-                npc_disassemble(str, sizeof(str), top->pc, top->ifu_rdata);
-                fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->ifu_rdata, str);
-#endif
+                npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
+                fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->inst_out, str);
+                #endif
                 printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
 
             }else if(npc_state.halt_ret == 0){
 #ifdef LOG
-                npc_disassemble(str, sizeof(str), top->pc, top->ifu_rdata);
-                fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->ifu_rdata, str); // log ebreak
+                npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
+                fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->inst_out, str);//log ebreak
                 fprintf(itrace_fp, "\033[38;5;117mNPC : HIT GOOD TRAP at pc = 0x%08x\033[0m\n", npc_state.halt_pc);
 #endif
                 printf("\033[38;5;117ma0 = %08x\033[0m\n", top->a0);
@@ -61,10 +60,10 @@ void cpu_exec(int n,int print_inst){
                 end = 1;
             }else{
 #ifdef LOG
-                npc_disassemble(str, sizeof(str), top->pc, top->ifu_rdata);
-                fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->ifu_rdata, str);
+                npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
+                fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->inst_out, str);
 #endif
-                printf("\033[1;31mError instruction(main_debug) : %08x\33[0m\n", top->ifu_rdata);
+                printf("\033[1;31mError instruction(main_debug) : %08x\33[0m\n", top->inst_out);
                 printf("\033[1;31mNPC : HIT BAD TRAP at pc = 0x%08x\033[0m\n", npc_state.halt_pc);
             }
             break;
@@ -75,13 +74,11 @@ void cpu_exec(int n,int print_inst){
 #ifdef LOG
         // 实现命令c的日志加载rdata_ram
         if(n==-1 && itrace_fp){
-            npc_disassemble(str, sizeof(str), top->pc, top->ifu_rdata);
+            npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
             fprintf(itrace_fp,"0x%08x:      %08x      %s",top->pc,top->ifu_rdata,str);
             /* ==================== 记录访存操作的地址和数据 ==================== */
-            if(!top->is_load_type) fprintf(itrace_fp,"\n");
-            if (top->is_load_type)  fprintf(itrace_fp, "        [addr:%08x]\n", top->alu_ram);
-            if (top->reg_load_wait)  fprintf(itrace_fp, "                                                   [read_ram:%08x]\n",top->rdata_ram);
-
+            if(!top->is_load_type && !top->w_ram) fprintf(itrace_fp,"\n");
+            if (top->is_load_type)  fprintf(itrace_fp, "        [addr:%08x] [read_ram:%08x]\n", top->alu_ram, top->rdata_ram);
             if (top->w_ram)         fprintf(itrace_fp, "        [addr:%08x] [write_ram:%08x]\n", top->alu_ram, top->rs2_data);
 
             /* ==================== 记录访存操作的地址和数据 ==================== */
@@ -91,10 +88,10 @@ void cpu_exec(int n,int print_inst){
         // 只在单步/si时打印
         if (print_inst){
             //printf("          0x%08x \n",top->inst_out);
-            npc_disassemble(str,sizeof(str), top->pc, top->ifu_rdata);
+            npc_disassemble(str,sizeof(str), top->pc, top->inst_out);
 #ifdef LOG
             if(itrace_fp){
-                fprintf(itrace_fp, "0x%08x:      %08x      %s", top->pc, top->ifu_rdata, str);
+                fprintf(itrace_fp, "0x%08x:      %08x      %s", top->pc, top->inst_out, str);
                 /* ==================== 记录访存操作的地址和数据 ==================== */
                 if (!top->is_load_type && !top->w_ram) fprintf(itrace_fp,"\n");
                 if (top->is_load_type)  fprintf(itrace_fp, "        [addr:%08x] [read_ram:%08x]\n", top->alu_ram, top->rdata_ram);
@@ -104,10 +101,10 @@ void cpu_exec(int n,int print_inst){
             }
 #endif
             uint8_t inst_byte[4]; // 单步si打印,两个字节分开输出
-            inst_byte[0] = top->ifu_rdata & 0xFF;
-            inst_byte[1] = (top->ifu_rdata >> 8) & 0xFF;
-            inst_byte[2] = (top->ifu_rdata >> 16) & 0xFF;
-            inst_byte[3] = (top->ifu_rdata >> 24) & 0xFF;
+            inst_byte[0] = top->inst_out & 0xFF;
+            inst_byte[1] = (top->inst_out >> 8 ) & 0xFF;
+            inst_byte[2] = (top->inst_out >> 16 ) & 0xFF;
+            inst_byte[3] = (top->inst_out >> 24 ) & 0xFF;
             printf("0x%08x: %02x %02x %02x %02x %s\n", top->pc, inst_byte[3], inst_byte[2], inst_byte[1], inst_byte[0],str);
         }
 /* ==================== NPC_ITRAC ==================== */
@@ -150,7 +147,6 @@ int main(int argc, char** argv) {
     top = new Vtop{contextp}; // Vtop* top
 
 #ifdef WAVE
-    printf("\033[38;5;117mCONFIG_WAVE_npc:ON\033[0m\n");
     m_trace = new VerilatedVcdC; // VerilatedVcdC* m_trace
     top->trace(m_trace, 99);
     m_trace->open("wave.vcd");

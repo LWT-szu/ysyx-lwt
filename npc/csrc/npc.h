@@ -2,15 +2,15 @@
 #ifndef __NPC_H__
 #define __NPC_H__
 
-#define WAVE
+//#define WAVE
 // #define NVBOARD
 #define ANSI_FG_SKYBLUE "\033[38;5;117m"
 #define ANSI_FG_RED "\33[1;31m"
 #define ANSI_NONE "\33[0m"
 //#define CONFIG_NPC_MTRACE
 #define CONFIG_NPC_ITRACE
-#define LOG
-#define RAM_MODE_BIN 1
+//#define LOG
+#define RAM_MODE_BIN // 注释掉我，就是加载十六进制文件
 #define SI_TRACE
 #define PMEM_BASE 0x80000000u
 #define SERIAL_PORT 0xa00003f8 // 串口（UART）0x10000000

@@ -40,19 +40,20 @@ module WBU (
   reg wen_load ;
   reg [3:0] rd_load;
   reg [31:0] Result_load;
+  reg [31:0] addr_load;
   reg lbu_wait;
   reg lw_wait;//is_load_type的延迟信号
 
   //选择器
   assign lbu_byte =
-    (alu_addr[1:0] == 2'b00) ? ram_data[7:0] ://////alu_data=0???????
-    (alu_addr[1:0] == 2'b01) ? ram_data[15:8] :
-    (alu_addr[1:0] == 2'b10) ? ram_data[23:16] :
+    (addr_load[1:0] == 2'b00) ? ram_data[7:0] ://////alu_data=0???????
+    (addr_load[1:0] == 2'b01) ? ram_data[15:8] :
+    (addr_load[1:0] == 2'b10) ? ram_data[23:16] :
                                ram_data[31:24];
 
   assign lh_byte =  
-    (alu_addr[1:0] == 2'b00) ? ram_data[15:0] : 
-    (alu_addr[1:0] == 2'b10) ? ram_data[31:16] : 16'b0;
+    (addr_load[1:0] == 2'b00) ? ram_data[15:0] : 
+    (addr_load[1:0] == 2'b10) ? ram_data[31:16] : 16'b0;
   /*
   //优先级 lbu > jalr > load > 普通算术,选择器
   assign wb_Rresult = 
@@ -125,10 +126,12 @@ module WBU (
       Result_load <= wb_Rresult_reg;
       lbu_wait <= is_lbu_type;
       lw_wait <= is_load_type;
+      addr_load <= alu_addr;
     end else begin
       wen_load <= 0;
       rd_load <= 4'b0;
       Result_load <= 32'b0;
+      addr_load <= 0;
     end
   end
   //load_wait ? 0 : (reg_load_wait ? wen_load : reg_en);
