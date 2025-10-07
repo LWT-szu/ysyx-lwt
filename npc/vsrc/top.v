@@ -7,6 +7,8 @@ module top (
   output is_load_type,
   output inst_valid,
   output reg_load_wait,
+  output reg wd,
+  output reg wl,
   output [31:0]pc,
   output [31:0]ifu_rdata,
 
@@ -104,7 +106,11 @@ module top (
   wire        lsu_wen;
   wire [31:0] lsu_wdata;
   wire [ 7:0] lsu_wmask;
-  wire        lsu_valid;
+  wire        lsu_respValid;//返回给 CPU (LSU)      告诉 CPU：“我已经把你要的数据准备好了，现在你可以用 rdata/结果了！”
+  wire        lsu_reqValid;//发给存储器（MEM）    告诉存储器：“我现在真的有一个读/写请求了，请你处理！”
+  wire        lsu_done; //访存完成标志
+  wire        decode_ready;
+  wire        LSU_WAIT;
   //================LSU======================
 
   //激励文件中寄存器赋值读取
@@ -135,15 +141,24 @@ module top (
       pc_reg <= 32'h80000000;
       mcycle <= 0;
       //$display("Top Reset: pc=%08x rst=%d", pc_reg,rst);
-    end else if(csr_write && state_wait && !load_wait) begin
+    end else if(csr_write && state_wait && !LSU_WAIT) begin
       mcycle <= wbu_mcycle;
-      pc_reg <= next_pc;
-      //$display("Top Reset: inst_valid=%d ", inst_valid);
+      pc_reg <= next_pc; 
+      wd <= state_wait || lsu_done;
+      wl <= state_wait && !load_wait;
       // 只有在没有load等待、且指令有效时才允许更新PC
-    end else if(state_wait && !load_wait) begin
+    end else if(state_wait && !(LSU_WAIT || load_wait || lsu_done)) begin //load指令外的普通指令PC更新,防止译码延迟
+    //同时也能预防译码的延迟，因为此时load相关的信号为0
       pc_reg <= next_pc;
       mcycle <= mcycle + 1;
+      wl <= state_wait && !load_wait;
+      wd <= state_wait || lsu_done;
       //$display("Top Reset: inst_valid=%d ", inst_valid);
+    
+    end else if (lsu_done) begin//load,store指令的PC更新 防止读取内存延迟 
+    //即使译码延迟也没关系，因为两周期的指令，在第二个周期译码和lsu_done同时为1
+        pc_reg <= next_pc;
+        mcycle <= mcycle + 1;
     end
     
     //$display("[PC_DBG] t=%0t rst=%0d pc_reg=%08x", $time, rst, pc_reg);
@@ -157,22 +172,25 @@ module top (
 
   MEM MEM_init (
   .clk(clk),
+  .rst(rst),
   .ifu_raddr(ifu_raddr),
   .inst_valid(inst_valid),
   .raddr_ready(raddr_ready),
   .load_wait(load_wait),
   .state_wait(state_wait),
 
-  .lsu_valid(lsu_valid),
   .lsu_addr(lsu_addr),//LSU->MEM
   .lsu_wen(lsu_wen),
   .lsu_wdata(lsu_wdata),
   .lsu_wmask(lsu_wmask),
+  .lsu_reqValid(lsu_reqValid),//来自CPU (LSU)      告诉 MEM：“我现在真的有一个读/写请求了，请你处理！”
+  .lsu_respValid(lsu_respValid),//返回给 CPU (LSU)      告诉 CPU：“我已经把你要的数据准备好了，现在你可以用 rdata/结果了！”
 
   .lsu_rdata(lsu_rdata),//MEM->LSU
 
   .ifu_rdata(ifu_rdata),
-  .reg_load_wait(reg_load_wait)
+  .reg_load_wait(reg_load_wait),
+  .decode_ready(decode_ready)
 );
 
 
@@ -183,6 +201,7 @@ module top (
     .pc(pc),
     .ifu_rdata(ifu_rdata),//存储器发送的数据
     .load_wait(load_wait),// load指令等待信号
+    .decode_ready(decode_ready),//译码准备好
 
 
     .ifu_raddr(ifu_raddr),//请求读存储器地址 pc
@@ -262,13 +281,17 @@ module top (
     .pc(pc),
     .rdata_ram(rdata_ram),     // out读取内存内容
 
+    .lsu_respValid(lsu_respValid),//MEM返回给 CPU (LSU)      告诉 CPU：“我已经把你要的数据准备好了，现在你可以用 rdata/结果了！”
+    .lsu_reqValid(lsu_reqValid),//发给存储器（MEM）    告诉存储器：“我现在真的有一个读/写请求了，请你处理！”
+    .lsu_done(lsu_done), //访存完成标志
+
     .lsu_addr(lsu_addr), //读地址
     .lsu_wen(lsu_wen),
     .lsu_wdata(lsu_wdata),
     .lsu_wmask(lsu_wmask),//写掩码
-    .lsu_valid(lsu_valid),
 
-    .load_wait(load_wait)
+    .load_wait(load_wait),
+    .LSU_WAIT(LSU_WAIT)
 );
 
 
@@ -299,6 +322,7 @@ module top (
   .reg_load_wait(reg_load_wait),
   .state_wait(state_wait),
   .load_wait(load_wait),
+  .lsu_done(lsu_done),//访存完成标志
 
   .wb_wen(wb_wen),//  output  wb_wen = reg_en
   .wb_rd(wb_rd),

@@ -4,10 +4,11 @@ module IFU (
   input [31:0] pc,
   input [31:0] ifu_rdata,//LSU->
   input load_wait,
+  input decode_ready,
 
   output [31:0] ifu_raddr,//->raddr temp from pc
   output reg [31:0] inst_out,//->IDU temp from rdata
-  output reg inst_valid,
+  output reg inst_valid,//只是说明指令取出的那个周期
   output reg raddr_ready,
   output state_wait
   //此处直接用了MEM输出的数据，没有传给IFU，因为clk会延迟一拍
@@ -24,38 +25,26 @@ module IFU (
       state <= IDLE;
       inst_valid <= 0;
       raddr_ready <= 1;
-      //$display("rst = %d",rst);
-      //$display("rst ifu_raddr = 0x%08x",ifu_raddr);
     end else begin
       case (state)
         IDLE: begin
-          if (load_wait) begin
-            state <= IDLE;
-            inst_valid <= 0;
-            raddr_ready <= 1;
-          end else begin
-            // idle_hold生效，进入WAIT
-            inst_valid <= 1;
+            // idle_hold生效，进入WAIT  第一周期不译码
+            inst_valid <= 1;//第二周期译码
             raddr_ready <= 0;
             state <= WAIT;
-          end
-          //$display("IDLE inst_valid = %d",inst_valid);
-          //$display("IDLE ifu_raddr = 0x%08x",ifu_raddr);
+
         end
         WAIT: begin
           //inst_valid <= 0;
           raddr_ready <= 1;
-          if (!load_wait) begin
+          if (!load_wait ) begin//此时为第二周期
             state <= IDLE;
-            inst_valid <= 0;
-          end else begin
+            inst_valid <= 0;//next 第一周期不译码
+          end else if(load_wait) begin
             state <= WAIT;
-            inst_valid <= 0;
+            inst_valid <= 0;//第三周期不译码
           end
-          //$display("WAIT inst_valid = %d",inst_valid);
-          //$display("WAIT ifu_rdata = 0x%08x",ifu_rdata);
-          //$display("WAIT inst_out = 0x%08x",inst_out);
-          
+
         end
       endcase
     end

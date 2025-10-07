@@ -16,6 +16,7 @@ extern "C" int pmem_read(int raddr, int pc, int valid, int wen_ram)
         printf("Error: blow base raddr=0x%08x base=0x%08x pc=0x%08x\n", raddr, PMEM_BASE, pc);
         npc_set_state(NPC_ABORT,pc,1);
         printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
+        return 0;
     }
 
     if (raddr == RTC_ADDR)
@@ -36,6 +37,7 @@ extern "C" int pmem_read(int raddr, int pc, int valid, int wen_ram)
         printf("Error: pmem_read access out of range! raddr=0x%x idx=%d\n", raddr, idx);
         npc_set_state(NPC_ABORT, pc, 1);
         printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
+        return 0;
     }
     /* ==================== mtrace ==================== */
 #ifdef CONFIG_NPC_MTRACE
