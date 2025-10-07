@@ -1,30 +1,38 @@
-import "DPI-C" function void pmem_write(
-  input  int waddr, input int  wdata, input byte wmask,input int pc);
-  
 module LSU (
     input clk,
     input rst,
+    input  [31:0] lsu_rdata,
+    //=============================原
     input valid,              // 是否有访存请求  ym
     input wen_ram,                // 是否是写入 ym Write_enable
     input [31:0]raddr_ram,        // 读地址EXU lsu_addr
     input [31:0]waddr_ram,        // 写地址EXU lsu_addr
-    input [31:0]wdata_ram,        //  要写入的数据gpr
+    input [31:0]wdata_ram,        //  要写入的数据gpr 
+    //=============================原
     input is_sb_type,
     input is_sh_type,
     input is_lh_type,
     input [31:0]pc,
 
     output reg [31:0]rdata_ram,
-    output reg load_wait // load指令等待信号
-    /*output [31:0] lsu_addr,
+    output [31:0] lsu_addr,
     output        lsu_wen,
     output [31:0] lsu_wdata,
-    output [ 3:0] lsu_wmask,
-    input  [31:0] lsu_rdata,*/
+    output [ 7:0] lsu_wmask,
+    output        lsu_valid,
 
+    output reg load_wait // load指令等待信号
 );
     wire [7:0]wmask;
     reg [31:0] data_ram;
+
+    assign rdata_ram = lsu_rdata;
+    // 组合逻辑计算访存地址和写使能
+    assign lsu_addr  = wen_ram ? waddr_ram : raddr_ram;
+    assign lsu_wen   = wen_ram;
+    assign lsu_wdata = data_ram;
+    assign lsu_wmask = wmask;
+    assign lsu_valid = valid;
 
     always @(*) begin
     if (valid && !wen_ram)begin
@@ -73,28 +81,4 @@ module LSU (
         end
 
     end
-
-    always @(posedge clk) begin
-        if (rst) begin
-            rdata_ram <= 0;
-        end else begin
-            if(valid && !wen_ram)begin
-                rdata_ram <= pmem_read(raddr_ram,pc,{31'b0, valid},{31'b0, wen_ram});// 有读请求时
-                //$display("LSU rdata_ram = %d  raddr_ram = 0x%08x rdata_ram = 0x%08x pc = 0x%08x",rdata_ram,raddr_ram,rdata_ram,pc);
-            end
-            else if (valid && wen_ram) pmem_write(waddr_ram, data_ram, wmask,pc);// 有写请求时
-            else begin
-                rdata_ram <= 0;
-            end
-
-        end
-    end
-/*
-    always @(posedge clk) begin
-        if (valid && wen_ram) begin // 有写请求时
-            pmem_write(waddr_ram, data_ram, wmask,pc);
-    end
-    
-    end
-*/
 endmodule

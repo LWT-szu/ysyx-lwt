@@ -97,6 +97,16 @@ module top (
   reg [31:0] pc_reg = 32'h80000000;       //保存当前 PC值,实现顺序执行和跳转
   assign pc = pc_reg;      //pc_reg的“输出端口”
 
+  //================LSU======================
+  wire [31:0] lsu_rdata;//从MEM中读取数据 MEM->LSU
+  //
+  wire [31:0] lsu_addr;//LSU->MEM
+  wire        lsu_wen;
+  wire [31:0] lsu_wdata;
+  wire [ 7:0] lsu_wmask;
+  wire        lsu_valid;
+  //================LSU======================
+
   //激励文件中寄存器赋值读取
   
   assign zero = RegisterFile_init.rf[0];
@@ -152,7 +162,15 @@ module top (
   .raddr_ready(raddr_ready),
   .load_wait(load_wait),
   .state_wait(state_wait),
-  
+
+  .lsu_valid(lsu_valid),
+  .lsu_addr(lsu_addr),//LSU->MEM
+  .lsu_wen(lsu_wen),
+  .lsu_wdata(lsu_wdata),
+  .lsu_wmask(lsu_wmask),
+
+  .lsu_rdata(lsu_rdata),//MEM->LSU
+
   .ifu_rdata(ifu_rdata),
   .reg_load_wait(reg_load_wait)
 );
@@ -230,6 +248,9 @@ module top (
   LSU LSU_init(
     .clk(clk),
     .rst(rst),
+
+    .lsu_rdata(lsu_rdata),//从MEM中读取数据->rdata_ram
+
     .valid(ls_vaild),         // 是否有访存请求
     .wen_ram(w_ram),          // 是否是写入
     .raddr_ram(alu_ram),      // 读地址lw,lbu????????
@@ -240,6 +261,13 @@ module top (
     .is_lh_type(is_lh_type),
     .pc(pc),
     .rdata_ram(rdata_ram),     // out读取内存内容
+
+    .lsu_addr(lsu_addr), //读地址
+    .lsu_wen(lsu_wen),
+    .lsu_wdata(lsu_wdata),
+    .lsu_wmask(lsu_wmask),//写掩码
+    .lsu_valid(lsu_valid),
+
     .load_wait(load_wait)
 );
 
