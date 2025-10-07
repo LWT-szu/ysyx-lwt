@@ -1,12 +1,12 @@
-module LSU (
-    input clk,
-    input rst,
-    input  [31:0] lsu_rdata,
+module ysyx_25080201_LSU (
+    input clock,
+    input reset,
+    input  [31:0] io_lsu_rdata,
     //=============================原
     input valid,              // 是否有访存请求  ym
     input wen_ram,                // 是否是写入 ym Write_enable
-    input [31:0]raddr_ram,        // 读地址EXU lsu_addr
-    input [31:0]waddr_ram,        // 写地址EXU lsu_addr
+    input [31:0]raddr_ram,        // 读地址EXU io_lsu_addr
+    input [31:0]waddr_ram,        // 写地址EXU io_lsu_addr
     input [31:0]wdata_ram,        //  要写入的数据gpr 
     //=============================原
     input is_sb_type,
@@ -14,15 +14,16 @@ module LSU (
     input is_lh_type,
     input [31:0]pc,
 
-    input reg lsu_respValid,//存储器响应有效（数据已准备好）
-    output reg lsu_reqValid,//访存请求有效 发给存储器（MEM）
+    input reg io_lsu_respValid,//存储器响应有效（数据已准备好）
+    output reg io_lsu_reqValid,//访存请求有效 发给存储器（MEM）
     output reg lsu_done, //访存完成标志 （通知下游模块）
 
     output reg [31:0]rdata_ram, // 读出的数据 (返回给EXU/WBU)
-    output [31:0] lsu_addr,
-    output        lsu_wen,
-    output [31:0] lsu_wdata,
-    output [ 7:0] lsu_wmask,
+    output [31:0] io_lsu_addr,
+    output        io_lsu_wen,
+    output [31:0] io_lsu_wdata,
+    output [ 3:0] io_lsu_wmask,
+    output [ 1:0] io_lsu_size,
 
     output reg load_wait, // load指令等待信号
     output reg LSU_WAIT
@@ -34,20 +35,20 @@ module LSU (
 
     assign LSU_WAIT = (state == WAIT);
 
-    wire [7:0]wmask;
+    wire [3:0]wmask;
     reg [31:0] data_ram;
 
-    //assign rdata_ram = lsu_respValid ? lsu_rdata : 32'b0;
+    //assign rdata_ram = io_lsu_respValid ? io_lsu_rdata : 32'b0;
     // 组合逻辑计算访存地址和写使能
-    assign lsu_addr  = wen_ram ? waddr_ram : raddr_ram;
-    assign lsu_wen   = wen_ram;//
-    assign lsu_wdata = data_ram;//
-    assign lsu_wmask = wmask;//
-    //assign lsu_reqValid = valid;
+    assign io_lsu_addr  = wen_ram ? waddr_ram : raddr_ram;
+    assign io_lsu_wen   = wen_ram;//
+    assign io_lsu_wdata = data_ram;//
+    assign io_lsu_wmask = wmask;//
+    //assign io_lsu_reqValid = valid;
 
-    assign wmask = is_sb_type ? (8'b00000001 << waddr_ram[1:0]): 
-            is_sh_type ? (waddr_ram[1] ? 8'b00001100 : 8'b00000011) :
-            8'b00001111;
+    assign wmask = is_sb_type ? (4'b0001 << waddr_ram[1:0]): 
+            is_sh_type ? (waddr_ram[1] ? 4'b1100 : 4'b0011) :
+            4'b1111;
 
     // always @(*) begin
     // if (valid && !wen_ram)begin
@@ -80,8 +81,8 @@ module LSU (
         end
     end
     // 状态转移
-    always @(posedge clk) begin
-        if(rst) begin
+    always @(posedge clock) begin
+        if(reset) begin
             state <= IDLE;
         end else begin
             case (state)
@@ -95,7 +96,7 @@ module LSU (
                 end
                 WAIT: begin
                     // 等待存储器respValid拉高时回到IDLE
-                    if (lsu_respValid) begin// 存储器响应
+                    if (io_lsu_respValid) begin// 存储器响应
                         state <= IDLE;
                     end else begin
                         state <= WAIT;
@@ -110,19 +111,19 @@ module LSU (
         rdata_ram = 32'b0;
         lsu_done = 1'b0;
         load_wait = 1'b0;
-        lsu_reqValid = 1'b0;
+        io_lsu_reqValid = 1'b0;
         case (state)
             IDLE: begin
                 if (valid) begin
-                    lsu_reqValid = 1'b1;                // 发起访存请求
+                    io_lsu_reqValid = 1'b1;                // 发起访存请求
                     load_wait = !wen_ram;               // 读时进入等待
                     lsu_done = wen_ram ? 1'b1 : 1'b0;   // 写操作立即完成
                 end
             end
             WAIT: begin
-                if (lsu_respValid) begin
+                if (io_lsu_respValid) begin
                     load_wait = 1'b0;                     // 读操作等待数据 
-                    rdata_ram = lsu_rdata;            // 数据返回，采集结果
+                    rdata_ram = io_lsu_rdata;            // 数据返回，采集结果
                     lsu_done = 1'b1;                   // 访存完成
                 end else begin
                     load_wait = 1'b1;                   //  [延迟]读操作等待数据

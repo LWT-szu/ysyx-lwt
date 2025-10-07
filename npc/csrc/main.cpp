@@ -5,13 +5,13 @@
 #include <stdint.h>
 #include "npc.h"
 
-#include "Vtop.h"
+#include "Vysyx_25080201.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
 extern size_t pmem_init(const char *filename);
 VerilatedContext *contextp;
-Vtop *top;
+Vysyx_25080201 *ysyx_25080201;
 VerilatedVcdC *m_trace;
 int end; // 单步执行用的end
 FILE *itrace_fp = NULL;// 日志文件指针
@@ -20,7 +20,7 @@ char str[128];// 反汇编字符串
 #ifdef NVBOARD
 #include <nvboard.h>
     void
-    nvboard_bind_all_pins(Vtop *top);
+    nvboard_bind_all_pins(Vysyx_25080201 *ysyx_25080201);
 #endif
 
 const char *reg[32] = {
@@ -35,35 +35,35 @@ void cpu_exec(int n,int print_inst){
     int count =0;
     while (!contextp->gotFinish() && (n == -1 || count < n) ) {
         // 上升沿
-        top->clk = 0;top->eval();contextp->timeInc(1);
+        ysyx_25080201->clock = 0;ysyx_25080201->eval();contextp->timeInc(1);
 #ifdef WAVE
         m_trace->dump(contextp->time()); // 当前仿真时间下所有信号的值
 #endif
-        //printf("[DEBUG] while pc = 0x%08x\n",top->pc);
+        //printf("[DEBUG] while pc = 0x%08x\n",ysyx_25080201->pc);
 /* ==================== NPC_State ==================== */
         if(npc_state.state == NPC_END || npc_state.state == NPC_ABORT){
             if(npc_state.state == NPC_ABORT){
                 #ifdef LOG
-                npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
-                fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->inst_out, str);
+                npc_disassemble(str, sizeof(str), ysyx_25080201->pc, ysyx_25080201->inst_out);
+                fprintf(itrace_fp, "0x%08x:      %08x      %s\n", ysyx_25080201->pc, ysyx_25080201->inst_out, str);
                 #endif
                 printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
 
             }else if(npc_state.halt_ret == 0){
 #ifdef LOG
-                npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
-                fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->inst_out, str);//log ebreak
+                npc_disassemble(str, sizeof(str), ysyx_25080201->pc, ysyx_25080201->inst_out);
+                fprintf(itrace_fp, "0x%08x:      %08x      %s\n", ysyx_25080201->pc, ysyx_25080201->inst_out, str);//log ebreak
                 fprintf(itrace_fp, "\033[38;5;117mNPC : HIT GOOD TRAP at pc = 0x%08x\033[0m\n", npc_state.halt_pc);
 #endif
-                printf("\033[38;5;117ma0 = %08x\033[0m\n", top->a0);
+                printf("\033[38;5;117ma0 = %08x\033[0m\n", ysyx_25080201->a0);
                 printf("\033[38;5;117mNPC : HIT GOOD TRAP at pc = 0x%08x\033[0m\n", npc_state.halt_pc);
                 end = 1;
             }else{
 #ifdef LOG
-                npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
-                fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->inst_out, str);
+                npc_disassemble(str, sizeof(str), ysyx_25080201->pc, ysyx_25080201->inst_out);
+                fprintf(itrace_fp, "0x%08x:      %08x      %s\n", ysyx_25080201->pc, ysyx_25080201->inst_out, str);
 #endif
-                printf("\033[1;31mError instruction(main_debug) : %08x\33[0m\n", top->inst_out);
+                printf("\033[1;31mError instruction(main_debug) : %08x\33[0m\n", ysyx_25080201->inst_out);
                 printf("\033[1;31mNPC : HIT BAD TRAP at pc = 0x%08x\033[0m\n", npc_state.halt_pc);
             }
             break;
@@ -74,12 +74,12 @@ void cpu_exec(int n,int print_inst){
 #ifdef LOG
         // 实现命令c的日志加载rdata_ram
         if(n==-1 && itrace_fp){
-            npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
-            fprintf(itrace_fp,"0x%08x:      %08x      %s",top->pc,top->ifu_rdata,str);
+            npc_disassemble(str, sizeof(str), ysyx_25080201->pc, ysyx_25080201->inst_out);
+            fprintf(itrace_fp,"0x%08x:      %08x      %s",ysyx_25080201->pc,ysyx_25080201->io_ifu_rdata,str);
             /* ==================== 记录访存操作的地址和数据 ==================== */
-            if(!top->is_load_type && !top->w_ram) fprintf(itrace_fp,"\n");
-            if (top->is_load_type)  fprintf(itrace_fp, "        [addr:%08x] [read_ram:%08x]\n", top->alu_ram, top->rdata_ram);
-            if (top->w_ram)         fprintf(itrace_fp, "        [addr:%08x] [write_ram:%08x]\n", top->alu_ram, top->rs2_data);
+            if(!ysyx_25080201->is_load_type && !ysyx_25080201->w_ram) fprintf(itrace_fp,"\n");
+            if (ysyx_25080201->is_load_type)  fprintf(itrace_fp, "        [addr:%08x] [read_ram:%08x]\n", ysyx_25080201->alu_ram, ysyx_25080201->rdata_ram);
+            if (ysyx_25080201->w_ram)         fprintf(itrace_fp, "        [addr:%08x] [write_ram:%08x]\n", ysyx_25080201->alu_ram, ysyx_25080201->rs2_data);
 
             /* ==================== 记录访存操作的地址和数据 ==================== */
             fflush(itrace_fp);
@@ -87,37 +87,37 @@ void cpu_exec(int n,int print_inst){
 #endif
         // 只在单步/si时打印
         if (print_inst){
-            //printf("          0x%08x \n",top->inst_out);
-            npc_disassemble(str,sizeof(str), top->pc, top->inst_out);
+            //printf("          0x%08x \n",ysyx_25080201->inst_out);
+            npc_disassemble(str,sizeof(str), ysyx_25080201->pc, ysyx_25080201->inst_out);
 #ifdef LOG
             if(itrace_fp){
-                fprintf(itrace_fp, "0x%08x:      %08x      %s", top->pc, top->inst_out, str);
+                fprintf(itrace_fp, "0x%08x:      %08x      %s", ysyx_25080201->pc, ysyx_25080201->inst_out, str);
                 /* ==================== 记录访存操作的地址和数据 ==================== */
-                if (!top->is_load_type && !top->w_ram) fprintf(itrace_fp,"\n");
-                if (top->is_load_type)  fprintf(itrace_fp, "        [addr:%08x] [read_ram:%08x]\n", top->alu_ram, top->rdata_ram);
-                if (top->w_ram)         fprintf(itrace_fp, "        [addr:%08x] [write_ram:%08x]\n", top->alu_ram,top->rs2_data);
+                if (!ysyx_25080201->is_load_type && !ysyx_25080201->w_ram) fprintf(itrace_fp,"\n");
+                if (ysyx_25080201->is_load_type)  fprintf(itrace_fp, "        [addr:%08x] [read_ram:%08x]\n", ysyx_25080201->alu_ram, ysyx_25080201->rdata_ram);
+                if (ysyx_25080201->w_ram)         fprintf(itrace_fp, "        [addr:%08x] [write_ram:%08x]\n", ysyx_25080201->alu_ram,ysyx_25080201->rs2_data);
                 /* ==================== 记录访存操作的地址和数据 ==================== */
                 fflush(itrace_fp);
             }
 #endif
             uint8_t inst_byte[4]; // 单步si打印,两个字节分开输出
-            inst_byte[0] = top->inst_out & 0xFF;
-            inst_byte[1] = (top->inst_out >> 8 ) & 0xFF;
-            inst_byte[2] = (top->inst_out >> 16 ) & 0xFF;
-            inst_byte[3] = (top->inst_out >> 24 ) & 0xFF;
-            printf("0x%08x: %02x %02x %02x %02x %s\n", top->pc, inst_byte[3], inst_byte[2], inst_byte[1], inst_byte[0],str);
+            inst_byte[0] = ysyx_25080201->inst_out & 0xFF;
+            inst_byte[1] = (ysyx_25080201->inst_out >> 8 ) & 0xFF;
+            inst_byte[2] = (ysyx_25080201->inst_out >> 16 ) & 0xFF;
+            inst_byte[3] = (ysyx_25080201->inst_out >> 24 ) & 0xFF;
+            printf("0x%08x: %02x %02x %02x %02x %s\n", ysyx_25080201->pc, inst_byte[3], inst_byte[2], inst_byte[1], inst_byte[0],str);
         }
 /* ==================== NPC_ITRAC ==================== */
         
-        //top->clk = !top->clk; // 不断翻转，产生周期性的时钟信号
+        //ysyx_25080201->clock = !ysyx_25080201->clock; // 不断翻转，产生周期性的时钟信号
     #ifdef NVBOARD
         nvboard_update();
     #endif
         
-        //top->eval();
+        //ysyx_25080201->eval();
         //printf("new version!\n");
         // 下降沿
-        top->clk = 1;top->eval();contextp->timeInc(1); // 再推进到 t+2
+        ysyx_25080201->clock = 1;ysyx_25080201->eval();contextp->timeInc(1); // 再推进到 t+2
     #ifdef WAVE
         m_trace->dump(contextp->time());
     #endif
@@ -144,11 +144,11 @@ int main(int argc, char** argv) {
     contextp->traceEverOn(true);
 #endif
     contextp->commandArgs(argc, argv);
-    top = new Vtop{contextp}; // Vtop* top
+    ysyx_25080201 = new Vysyx_25080201{contextp}; // Vysyx_25080201* ysyx_25080201
 
 #ifdef WAVE
     m_trace = new VerilatedVcdC; // VerilatedVcdC* m_trace
-    top->trace(m_trace, 99);
+    ysyx_25080201->trace(m_trace, 99);
     m_trace->open("wave.vcd");
 #endif
 
@@ -156,23 +156,23 @@ int main(int argc, char** argv) {
     printf("\033[38;5;117mCONFIG_difftest_npc:ON\033[0m\n");
     size_t imge_size = pmem_init(argv[1]);
     // difftest debug上电后拉高复位
-    top->rst = 1;
-    top->clk = 0;top->eval();
-    top->clk = 1;top->eval();
+    ysyx_25080201->reset = 1;
+    ysyx_25080201->clock = 0;ysyx_25080201->eval();
+    ysyx_25080201->clock = 1;ysyx_25080201->eval();
     // 拉低复位，进入正常运行
-    top->rst = 0;
+    ysyx_25080201->reset = 0;
 
-    //printf("[DEBUG] pc = 0x%08x\n",top->pc);
+    //printf("[DEBUG] pc = 0x%08x\n",ysyx_25080201->pc);
     init_difftest(imge_size, 0);
 #else
-    top->rst = 1;
-    top->clk = 0;top->eval();contextp->timeInc(1);
+    ysyx_25080201->reset = 1;
+    ysyx_25080201->clock = 0;ysyx_25080201->eval();contextp->timeInc(1);
 #ifdef WAVE
     m_trace->dump(contextp->time());
 #endif
-    top->clk = 1;top->eval();contextp->timeInc(1);
+    ysyx_25080201->clock = 1;ysyx_25080201->eval();contextp->timeInc(1);
     // 拉低复位，进入正常运行
-    top->rst = 0;
+    ysyx_25080201->reset = 0;
 #ifdef WAVE
     m_trace->dump(contextp->time());
 #endif
@@ -196,13 +196,13 @@ int main(int argc, char** argv) {
 #endif
 
 #ifdef NVBOARD
-    nvboard_bind_all_pins(top);  
+    nvboard_bind_all_pins(ysyx_25080201);  
     nvboard_init();             
 #endif
 /*
 #ifdef WAVE
     m_trace = new VerilatedVcdC; // VerilatedVcdC* m_trace
-    top->trace(m_trace, 99);                    
+    ysyx_25080201->trace(m_trace, 99);                    
     m_trace->open("wave.vcd");            
 #endif
 */
@@ -226,7 +226,7 @@ int main(int argc, char** argv) {
         else if(strncmp(cmd,"info r",6) == 0){
             int i =0;
             for(i;i<32;i++){
-                printf("%3s = 0x%08x\t",reg[i],top->rf[i]);
+                printf("%3s = 0x%08x\t",reg[i],ysyx_25080201->rf[i]);
                 if ((i+1)%4==0) puts("");
             }
         }
@@ -268,7 +268,7 @@ int main(int argc, char** argv) {
     m_trace->close();    
     delete m_trace;      
 #endif
-    delete top;          
+    delete ysyx_25080201;          
     delete contextp;
     if(itrace_fp) fclose(itrace_fp);
 #ifdef NVBOARD
@@ -280,8 +280,8 @@ int main(int argc, char** argv) {
 /*if(count >=0){
     printf("======================start==========================\n");
     printf("pc=%08x, sp=%08x,gp=%08x, tp=%08x, s0=%08x, a0=%08x, a1=%08x\n",
-           top->pc, top->sp, top->gp, top->tp, top->s0, top->a0, top->a1);
-    printf("count=%d,inst_out=%08x,alu_ram=0x%08x\n", count,top->inst_out, top->alu_ram);
+           ysyx_25080201->pc, ysyx_25080201->sp, ysyx_25080201->gp, ysyx_25080201->tp, ysyx_25080201->s0, ysyx_25080201->a0, ysyx_25080201->a1);
+    printf("count=%d,inst_out=%08x,alu_ram=0x%08x\n", count,ysyx_25080201->inst_out, ysyx_25080201->alu_ram);
     printf("\n");
 }
     count++;

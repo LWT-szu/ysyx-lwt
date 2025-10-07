@@ -1,7 +1,7 @@
 //写入寄存器，更新PC
-module WBU (
-  input clk,
-  input rst,
+module ysyx_25080201_WBU (
+  input clock,
+  input reset,
   input [31:0]pc,
   input [31:0]alu_data,//从alu中读取数据
   input [31:0]alu_addr,//从alu中读取的地址
@@ -120,7 +120,7 @@ module WBU (
 
   end
 
-  always @(posedge clk) begin
+  always @(posedge clock) begin
     if(state_wait) begin
       wen_load <= reg_en;
       rd_load <= waddr;
@@ -156,7 +156,7 @@ endmodule
   
   /*
   always @(*) begin
-    if (rst == 1) next_pc <= 32'h80000000;
+    if (reset == 1) next_pc <= 32'h80000000;
     else if(jalr_en == 1) next_pc <= alu_data & 32'hfffffffe;//最低位清零
     else next_pc <= pc + 32'h00000004;
   end

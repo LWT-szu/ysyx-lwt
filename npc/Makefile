@@ -1,10 +1,10 @@
-#VSRC = $(wildcard ./vsrc/top.v)
+#VSRC = $(wildcard ./vsrc/ysyx_25080201.v)
 #CSRC = $(wildcard ./csrc/main.cpp)
 #all:
 #	@echo "Write this Makefile by your self."
 #sim:
 #	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
-#	verilator -Wno-fatal $(VSRC) $(CSRC) --top-module top --cc --trace --exe
+#	verilator -Wno-fatal $(VSRC) $(CSRC) --ysyx_25080201-module ysyx_25080201 --cc --trace --exe
 #	make -C obj_dir -f Vtop.mk Vtop
 #	./obj_dir/Vtop
 #	#gtkwave wave.vcd &
@@ -16,8 +16,8 @@
 
 
 # 基本配置
-TOPNAME = top
-NXDC_FILES = constr/top.nxdc
+TOPNAME = ysyx_25080201
+NXDC_FILES = constr/ysyx_25080201.nxdc
 INC_PATH ?=
 
 # 项目路径
@@ -30,7 +30,7 @@ VERILATOR = verilator
 VERILATOR_CFLAGS += -MMD --build --trace -cc -O3 --x-assign fast --x-initial fast --noassert
 
 # 文件路径
-VSRCS = $(shell find $(abspath ./vsrc) -name "*.v") $(abspath ./vsrc/IDU.sv)
+VSRCS = $(shell find $(abspath ./vsrc) -name "*.v") 
 CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp")
 
 #SRC_AUTO_BIND = $(abspath $(BUILD_DIR)/auto_bind.cpp)

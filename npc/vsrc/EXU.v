@@ -1,5 +1,5 @@
 //ALU算术逻辑单元
-module EXU (
+module ysyx_25080201_EXU (
   input [31:0]pc,
   input [31:0]imm_alu,        // 立即数（I型/S型/U型等）或无效
   input [31:0]rs1_alu,

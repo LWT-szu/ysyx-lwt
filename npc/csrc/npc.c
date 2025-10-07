@@ -1,6 +1,6 @@
 #include "npc.h"
 #include <dlfcn.h>
-#include "Vtop.h"
+#include "Vysyx_25080201.h"
 #include <capstone/capstone.h>
 #include <stdio.h>
 #include <assert.h>
@@ -8,7 +8,7 @@
 #include <readline/history.h>
 #include <stdbool.h>
 #include <sys/time.h>
-extern Vtop *top;
+extern Vysyx_25080201 *ysyx_25080201;
 extern uint32_t pmem[];
 
 NPCState npc_state = { .state = NPC_RUNNING};
@@ -95,9 +95,9 @@ char* npc_readline(const char *prompt){
 void reg_curr_state(npc_CPU_state *dst){
     assert(dst != NULL);
     for(int i = 0;i<32;i++){//???????????
-        dst->gpr[i] = top->rf[i];
+        dst->gpr[i] = ysyx_25080201->rf[i];
     }
-    dst->pc = top->pc;
+    dst->pc = ysyx_25080201->pc;
 }
 
 // 加载参考模型动态库，获取相关函数指针，初始化参考模型状态
@@ -169,7 +169,7 @@ void difftest_step(){
     // 3. 取 DUT 自己当前寄存器
 
     // 反汇编当前指令
-    uint32_t inst = top->ifu_rdata;
+    uint32_t inst = ysyx_25080201->io_ifu_rdata;
     char disasm_str[64];
     npc_disassemble(disasm_str, sizeof(disasm_str), dut_state.pc, inst);
 

@@ -1,7 +1,7 @@
 import "DPI-C" function void halt(input int pc,input int halt_ret);
-module top (
-  input clk,
-  input rst,
+module ysyx_25080201 (
+  input clock,
+  input reset,
   //input [31:0]inst,
   output w_ram,
   output is_load_type,
@@ -10,7 +10,7 @@ module top (
   output reg wd,
   output reg wl,
   output [31:0]pc,
-  output [31:0]ifu_rdata,
+  output [31:0]io_ifu_rdata,
 
   output [31:0] rf[31:0],
   output [31:0] rs2_data,
@@ -49,8 +49,8 @@ module top (
   endgenerate
 
   wire [31:0]next_pc;      // 下一条指令的 PC，由 WBU 产生
-  //wire [31:0]ifu_rdata;//存储器发送的数据 MEM-->IFU
-  wire [31:0]ifu_raddr;//读地址IFU-->MEM
+  //wire [31:0]io_ifu_rdata;//存储器发送的数据 MEM-->IFU
+  wire [31:0]io_ifu_addr;//读地址IFU-->MEM
 
   //wire [31:0]inst_out;     // IFU 输出的指令（传给 IDU）
 
@@ -78,7 +78,7 @@ module top (
   wire is_lhu_type;
 
   //wire inst_valid;//指令是否有效
-  wire raddr_ready;
+  wire io_ifu_reqValid;
   wire load_wait; // load指令等待信号
   wire state_wait;
   //wire reg_load_wait; //load指令next等待信号WBU->RegFile
@@ -100,17 +100,18 @@ module top (
   assign pc = pc_reg;      //pc_reg的“输出端口”
 
   //================LSU======================
-  wire [31:0] lsu_rdata;//从MEM中读取数据 MEM->LSU
+  wire [31:0] io_lsu_rdata;//从MEM中读取数据 MEM->LSU
   //
-  wire [31:0] lsu_addr;//LSU->MEM
-  wire        lsu_wen;
-  wire [31:0] lsu_wdata;
-  wire [ 7:0] lsu_wmask;
-  wire        lsu_respValid;//返回给 CPU (LSU)      告诉 CPU：“我已经把你要的数据准备好了，现在你可以用 rdata/结果了！”
-  wire        lsu_reqValid;//发给存储器（MEM）    告诉存储器：“我现在真的有一个读/写请求了，请你处理！”
+  wire [31:0] io_lsu_addr;//LSU->MEM
+  wire        io_lsu_wen;
+  wire [31:0] io_lsu_wdata;
+  wire [ 3:0] io_lsu_wmask;
+  wire        io_lsu_respValid;//返回给 CPU (LSU)      告诉 CPU：“我已经把你要的数据准备好了，现在你可以用 rdata/结果了！”
+  wire        io_lsu_reqValid;//发给存储器（MEM）    告诉存储器：“我现在真的有一个读/写请求了，请你处理！”
   wire        lsu_done; //访存完成标志
-  wire        decode_ready;
+  wire        io_ifu_respValid;
   wire        LSU_WAIT;
+  wire [ 1:0] io_lsu_size;//  I/O
   //================LSU======================
 
   //激励文件中寄存器赋值读取
@@ -132,15 +133,15 @@ module top (
   reg [63:0] mcycle;//cycle计数器
   reg [63:0] wbu_mcycle;//wbu cycle mcycle需要用一个中间变量暂存,然后在顶层模块赋值
   reg [31:0] mvendorid = 32'h79737978;//ysyx 32'h79737978
-  reg [31:0] marchid = 32'd2025080201;//STUDENT_ID 32'h017EB189 32'd2025080201
+  reg [31:0] marchid = 32'h25080201;//STUDENT_ID 32'h017EB189 32'd2025080201
 //================CSR======================
   
-  always @(posedge clk or posedge rst) begin
+  always @(posedge clock or posedge reset) begin
     
-    if (rst==1)begin
+    if (reset==1)begin
       pc_reg <= 32'h80000000;
       mcycle <= 0;
-      //$display("Top Reset: pc=%08x rst=%d", pc_reg,rst);
+      //$display("Top Reset: pc=%08x reset=%d", pc_reg,reset);
     end else if(csr_write && state_wait && !LSU_WAIT) begin
       mcycle <= wbu_mcycle;
       pc_reg <= next_pc; 
@@ -161,7 +162,7 @@ module top (
         mcycle <= mcycle + 1;
     end
     
-    //$display("[PC_DBG] t=%0t rst=%0d pc_reg=%08x", $time, rst, pc_reg);
+    //$display("[PC_DBG] t=%0t reset=%0d pc_reg=%08x", $time, reset, pc_reg);
     //注意跳转的情况，如果跳到了其他地方，这里不会打印
 /*
     if(pc < 32'h80000030 && pc > 32'h80000014)begin
@@ -170,52 +171,54 @@ module top (
     */
   end
 
-  MEM MEM_init (
-  .clk(clk),
-  .rst(rst),
-  .ifu_raddr(ifu_raddr),
+  ysyx_25080201_MEM MEM_init (
+  .clock(clock),
+  .reset(reset),
+  .io_ifu_addr(io_ifu_addr),
   .inst_valid(inst_valid),
-  .raddr_ready(raddr_ready),
+  .io_ifu_reqValid(io_ifu_reqValid),
   .load_wait(load_wait),
   .state_wait(state_wait),
 
-  .lsu_addr(lsu_addr),//LSU->MEM
-  .lsu_wen(lsu_wen),
-  .lsu_wdata(lsu_wdata),
-  .lsu_wmask(lsu_wmask),
-  .lsu_reqValid(lsu_reqValid),//来自CPU (LSU)      告诉 MEM：“我现在真的有一个读/写请求了，请你处理！”
-  .lsu_respValid(lsu_respValid),//返回给 CPU (LSU)      告诉 CPU：“我已经把你要的数据准备好了，现在你可以用 rdata/结果了！”
+  .io_lsu_addr(io_lsu_addr),//LSU->MEM
+  .io_lsu_wen(io_lsu_wen),
+  .io_lsu_wdata(io_lsu_wdata),
+  .io_lsu_wmask(io_lsu_wmask),
+  .io_lsu_reqValid(io_lsu_reqValid),//来自CPU (LSU)      告诉 MEM：“我现在真的有一个读/写请求了，请你处理！”
+  .io_lsu_respValid(io_lsu_respValid),//返回给 CPU (LSU)      告诉 CPU：“我已经把你要的数据准备好了，现在你可以用 rdata/结果了！”
 
-  .lsu_rdata(lsu_rdata),//MEM->LSU
+  .io_lsu_rdata(io_lsu_rdata),//MEM->LSU
 
-  .ifu_rdata(ifu_rdata),
+  .io_ifu_rdata(io_ifu_rdata),
   .reg_load_wait(reg_load_wait),
-  .decode_ready(decode_ready)
+  .io_ifu_respValid(io_ifu_respValid)
 );
 
 
   //取指
-  IFU IFU_init(
-    .clk(clk),
-    .rst(rst),
+  ysyx_25080201_IFU IFU_init(
+    .clock(clock),
+    .reset(reset),
     .pc(pc),
-    .ifu_rdata(ifu_rdata),//存储器发送的数据
+    .io_ifu_rdata(io_ifu_rdata),//存储器发送的数据
     .load_wait(load_wait),// load指令等待信号
-    .decode_ready(decode_ready),//译码准备好
+    .io_ifu_respValid(io_ifu_respValid),//译码准备好
+    .LSU_WAIT(LSU_WAIT),
+    .lsu_done(lsu_done),
 
 
-    .ifu_raddr(ifu_raddr),//请求读存储器地址 pc
+    .io_ifu_addr(io_ifu_addr),//请求读存储器地址 pc
     .inst_out(inst_out),//输出指令
     .inst_valid(inst_valid),
-    .raddr_ready(raddr_ready),
+    .io_ifu_reqValid(io_ifu_reqValid),
     .state_wait(state_wait)
   );
   //译码
-  IDU IDU_init(
+  ysyx_25080201_IDU IDU_init(
   .inst_ym(inst_out),//inst_out
   .pc(pc),
   .inst_valid(inst_valid),
-  .clk(clk),
+  .clock(clock),
 
   .IDU_imm(imm),//
   .IDU_rd(rd),
@@ -243,7 +246,7 @@ module top (
 );
 
 //ALU算术逻辑单元
-  EXU EXU_init(
+  ysyx_25080201_EXU EXU_init(
   .pc(pc),
   .imm_alu(imm),//imm
   .rs1_alu(rs1_data),//x[rs1]
@@ -264,11 +267,11 @@ module top (
 );
 
 //访存
-  LSU LSU_init(
-    .clk(clk),
-    .rst(rst),
+  ysyx_25080201_LSU LSU_init(
+    .clock(clock),
+    .reset(reset),
 
-    .lsu_rdata(lsu_rdata),//从MEM中读取数据->rdata_ram
+    .io_lsu_rdata(io_lsu_rdata),//从MEM中读取数据->rdata_ram
 
     .valid(ls_vaild),         // 是否有访存请求
     .wen_ram(w_ram),          // 是否是写入
@@ -281,14 +284,15 @@ module top (
     .pc(pc),
     .rdata_ram(rdata_ram),     // out读取内存内容
 
-    .lsu_respValid(lsu_respValid),//MEM返回给 CPU (LSU)      告诉 CPU：“我已经把你要的数据准备好了，现在你可以用 rdata/结果了！”
-    .lsu_reqValid(lsu_reqValid),//发给存储器（MEM）    告诉存储器：“我现在真的有一个读/写请求了，请你处理！”
+    .io_lsu_respValid(io_lsu_respValid),//MEM返回给 CPU (LSU)      告诉 CPU：“我已经把你要的数据准备好了，现在你可以用 rdata/结果了！”
+    .io_lsu_reqValid(io_lsu_reqValid),//发给存储器（MEM）    告诉存储器：“我现在真的有一个读/写请求了，请你处理！”
     .lsu_done(lsu_done), //访存完成标志
 
-    .lsu_addr(lsu_addr), //读地址
-    .lsu_wen(lsu_wen),
-    .lsu_wdata(lsu_wdata),
-    .lsu_wmask(lsu_wmask),//写掩码
+    .io_lsu_addr(io_lsu_addr), //读地址
+    .io_lsu_wen(io_lsu_wen),
+    .io_lsu_wdata(io_lsu_wdata),
+    .io_lsu_wmask(io_lsu_wmask),//写掩码
+    .io_lsu_size(io_lsu_size),
 
     .load_wait(load_wait),
     .LSU_WAIT(LSU_WAIT)
@@ -297,9 +301,9 @@ module top (
 
 
 //写入寄存器，更新PC
-  WBU WBU_init (
-  .clk(clk),
-  .rst(rst),
+  ysyx_25080201_WBU WBU_init (
+  .clock(clock),
+  .reset(reset),
   .pc(pc_reg),
   .alu_data(alu_result),//从alu中读取数据
   .alu_addr(alu_ram),// 读地址lw,lbu--------------------
@@ -334,15 +338,15 @@ module top (
   //注意去掉逗号！！！！！！！！！！！！！！
 );
 
-  RegisterFile RegisterFile_init(
-  .clk(clk),
+  ysyx_25080201_RegisterFile RegisterFile_init(
+  .clock(clock),
   .pc(pc),
   .rs1(rs1),
   .rs2(rs2),
   .reg_wdata(wb_Rresult),     // 写入ALU,RAM数据
   .reg_waddr(wb_rd),          // 写入地址rd
   .wen(wb_wen),               // 写使能
-  .ifu_rdata(ifu_rdata),
+  .io_ifu_rdata(io_ifu_rdata),
   .inst_valid(inst_valid),
   .reg_load_wait(reg_load_wait),
   
@@ -355,15 +359,15 @@ module top (
 endmodule
 
 
-module RegisterFile(
-  input clk,
+module ysyx_25080201_RegisterFile(
+  input clock,
   input [31:0]pc,
   input [3:0]rs1,
   input [3:0]rs2,
   input [31:0] reg_wdata,     // 接收要写入的alu|ram数据
   input [3:0] reg_waddr,      // 接收要写入的地址rd
   input wen,                  // 写使能
-  input [31:0]ifu_rdata,
+  input [31:0]io_ifu_rdata,
   input inst_valid,
   input reg_load_wait,
 
@@ -373,7 +377,7 @@ module RegisterFile(
   // rf为寄存器数组，大小为16，每个寄存器宽度为32
   reg[31:0] rf[15:0];
   // 写操作：时钟上升沿，当wen为1时，将wdata写入waddr对应的寄存器
-  always @(posedge clk) begin
+  always @(posedge clock) begin
     //$display("reg_wdata=0x%08x",reg_wdata);
     //$display("reg_waddr=%05b",reg_waddr);
     if (reg_load_wait || (wen && reg_waddr != 0)) begin
@@ -387,10 +391,10 @@ module RegisterFile(
   assign rs1_data = (rs1 == 0) ? 32'b0 : rf[rs1];
   assign rs2_data = (rs2 == 0) ? 32'b0 : rf[rs2];//如果 rs2 没有用到或者等于 0 号寄存器，输出就是 0
   always @(*) begin
-    if(ifu_rdata == 32'h00100073 && rf[10] == 32'b0)begin
+    if(io_ifu_rdata == 32'h00100073 && rf[10] == 32'b0)begin
       halt(pc,0);
     end   
-    else if(ifu_rdata == 32'h00100073 && rf[10] == 32'b1)begin
+    else if(io_ifu_rdata == 32'h00100073 && rf[10] == 32'b1)begin
       //$display("a0=0x%08x",rf[10]);
       halt(pc,1);
     end
