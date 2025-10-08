@@ -40,21 +40,21 @@ module ysyx_25080201_WBU (
   reg [31:0] wb_Rresult_reg;
   reg wen_load ;
   reg [3:0] rd_load;
-  reg [31:0] Result_load;
-  reg [31:0] addr_load;
-  reg lbu_wait;
+  //reg [31:0] Result_load;
+  //reg [31:0] addr_load;
+  //reg lbu_wait;
   //reg lw_wait;//is_load_type的延迟信号
 
   //选择器
   assign lbu_byte =
-    (addr_load[1:0] == 2'b00) ? ram_data[7:0] ://////alu_data=0???????
-    (addr_load[1:0] == 2'b01) ? ram_data[15:8] :
-    (addr_load[1:0] == 2'b10) ? ram_data[23:16] :
+    (alu_addr[1:0] == 2'b00) ? ram_data[7:0] ://////alu_data=0???????
+    (alu_addr[1:0] == 2'b01) ? ram_data[15:8] :
+    (alu_addr[1:0] == 2'b10) ? ram_data[23:16] :
                                ram_data[31:24];
 
   assign lh_byte =  
-    (addr_load[1:0] == 2'b00) ? ram_data[15:0] : 
-    (addr_load[1:0] == 2'b10) ? ram_data[31:16] : 16'b0;
+    (alu_addr[1:0] == 2'b00) ? ram_data[15:0] : 
+    (alu_addr[1:0] == 2'b10) ? ram_data[31:16] : 16'b0;
   /*
   //优先级 lbu > jalr > load > 普通算术,选择器
   assign wb_Rresult = 
@@ -64,7 +64,7 @@ module ysyx_25080201_WBU (
                             alu_data ;//add
   */
   always @(*) begin
-    if(lbu_wait)
+    if(is_lbu_type)
       wb_Rresult_reg = {24'b0, lbu_byte} ; //lbu
     else if(is_lh_type)
       wb_Rresult_reg = {{16{lh_byte[15]}}, lh_byte} ; //lh  符号扩展
@@ -74,7 +74,7 @@ module ysyx_25080201_WBU (
     else if  (jalr_en || Jal_en)
       wb_Rresult_reg = pc + 32'h4;//jalr jal
 
-    else if(reg_load_wait && !lbu_wait)
+    else if(reg_load_wait && !is_lbu_type)
       wb_Rresult_reg = ram_data;//lw
 
     else if(csr_write)
@@ -124,14 +124,14 @@ module ysyx_25080201_WBU (
     if(state_wait) begin
       wen_load <= reg_en;
       rd_load <= waddr;
-      Result_load <= wb_Rresult_reg;
-      lbu_wait <= is_lbu_type;
-      addr_load <= alu_addr;
+      //Result_load <= wb_Rresult_reg;
+      //lbu_wait <= is_lbu_type;
+      //addr_load <= alu_addr;
     end else begin
       wen_load <= 0;
       rd_load <= 4'b0;
       Result_load <= 32'b0;
-      addr_load <= 0;
+      //addr_load <= 0;
     end
   end
   //load_wait ? 0 : (reg_load_wait ? wen_load : reg_en);

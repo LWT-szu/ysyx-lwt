@@ -86,9 +86,9 @@ assign wmask = io_lsu_wen ? (
             case (state)
                 IDLE: begin
                     // 读请求进入WAIT，写请求保持IDLE（写单周期完成）
-                    if (valid && !wen_ram) begin//// 读请求
+                    if (valid ) begin//// 读请求
                         state <= WAIT;
-                    end else if (valid && wen_ram) begin
+                    end else begin
                         state <= IDLE;
                     end
                 end
@@ -119,6 +119,7 @@ assign wmask = io_lsu_wen ? (
                 end
             end
             WAIT: begin
+                io_lsu_reqValid = 1'b0;                // 访存请求已发出
                 if (io_lsu_respValid) begin
                     load_wait = 1'b0;                     // 读操作等待数据 
                     rdata_ram = io_lsu_rdata;            // 数据返回，采集结果

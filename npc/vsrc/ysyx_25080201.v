@@ -319,7 +319,7 @@ module ysyx_25080201 (
   .rs2(rs2),
   .reg_wdata(wb_Rresult),     // 写入ALU,RAM数据
   .reg_waddr(wb_rd),          // 写入地址rd
-  .wen(wb_wen),               // 写使能
+  .wen(wb_wen && ((is_load_type && io_lsu_respValid) || (!is_load_type && io_ifu_respValid))),               // 写使能
   .io_ifu_rdata(io_ifu_rdata),
   .lsu_done(lsu_done),
   

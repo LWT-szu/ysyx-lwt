@@ -62,7 +62,7 @@ module ysyx_25080201_IDU (
     csr_write    = 0;
     //idu_inst  <= inst_out; 
     //idu_valid <= inst_valid;//指令是否有效
-    if (io_ifu_respValid) begin
+    //if (io_ifu_respValid) begin
 
       // 指令类型译码与控制信号生成
       case (inst_ym[6:0])
@@ -292,13 +292,34 @@ module ysyx_25080201_IDU (
 
         default: begin
           $display("2.Unknown/illegal io_ifu_respValid: %d instruction: %08x at pc=%08x", io_ifu_respValid,inst_ym, pc);
-          halt(pc,1);
+              IDU_imm      = 32'b0;
+              IDU_rd       = 4'b0;
+              IDU_rs1      = 4'b0;
+              IDU_rs2      = 4'b0;
+              IDU_func     = 3'b0;
+              IDU_opcode   = 7'b0;
+              IDU_func7    = 7'b0;
+              Reg_write    = 0;
+              Jal_en       = 0;
+              Jump_en      = 0;
+              add_alu      = 1;
+              ls_vaild     = 0;
+              w_ram        = 0;
+              is_load_type = 0;
+              is_lbu_type  = 0;
+              is_sb_type   = 0;
+              is_sh_type   = 0;
+              is_branch    = 0;
+              is_lh_type   = 0;
+              is_lhu_type  = 0;
+              csr_write    = 0;
+          //halt(pc,1);
         end
       endcase
     
     //$display("opcode_alu = %07b,IDU_imm=%12b,func_alu=%03b,IDU_rs1=%08x,IDU_rs2=%08x,IDU_rd=%08x | pc = %08x,Reg_write=%d",IDU_opcode,IDU_imm,IDU_func,IDU_rs1,IDU_rs2,IDU_rd,pc,Reg_write);
     // 特权指令halt
     end
-  end
+  //end
 
 endmodule
