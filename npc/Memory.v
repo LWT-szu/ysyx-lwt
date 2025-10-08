@@ -31,7 +31,7 @@ module ysyx_25080201_MEM(
       io_ifu_respValid <= 1'b1;
 
     end else begin                    //一般情况
-      io_ifu_rdata <= 0;
+      //io_ifu_rdata <= 0;
       io_ifu_respValid <= 1'b0;
     end
 

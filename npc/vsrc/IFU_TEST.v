@@ -26,23 +26,24 @@ module ysyx_25080201_IFU (
     if (reset) begin
       state <= IDLE;
       //inst_valid <= 0;
-      io_ifu_reqValid <= 1;
+      io_ifu_reqValid <= 0;
     end else begin
       case (state)
         IDLE: begin
             // idle_hold生效，进入WAIT  第一周期不译码
             //inst_valid <= 1;//第二周期译码
-            io_ifu_reqValid <= 0;
+            io_ifu_reqValid <= 1;
             state <= WAIT;
 
         end
         WAIT: begin
           //inst_valid <= 0;
+          io_ifu_reqValid <= 0;//防止连续请求
           if (io_ifu_respValid) begin
               if (!load_wait ) begin//此时为第二周期 (load_wait || LSU_WAIT)防止延迟 but time logger
                 state <= IDLE;
                 //inst_valid <= 0;//next 第一周期不译码
-                io_ifu_reqValid <= 1;
+                io_ifu_reqValid <= 0;
             end else if(load_wait || LSU_WAIT) begin// 只有 lsu_done==1 才能转IDLE
                 state <= WAIT;
                 //inst_valid <= 0;//第三周期不译码

@@ -10,7 +10,7 @@
 #include "verilated_vcd_c.h"
 
 #define FLASH_SIZE (16 * 1024 * 1024) // 16MB, 
-uint32_t flash_mem[FLASH_SIZE];
+uint8_t flash_mem[FLASH_SIZE];
 
 
 extern size_t pmem_init(const char *filename);
@@ -29,19 +29,17 @@ extern "C" void flash_init(const char *bin_path) {
     }else{
         printf("[flash_init] Opened flash image: %s\n", bin_path);
     }
-    size_t size = fread(flash_mem, 1, FLASH_SIZE * sizeof(uint32_t), fp);
+    size_t size = fread(flash_mem, 1, FLASH_SIZE * sizeof(uint8_t), fp);
     fclose(fp);
 
     printf("[flash_init] Loaded %zu bytes into flash from %s\n", size, bin_path);
     assert(size > 0);
 }
-extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }
-/*
+//extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }
+
 extern "C" void flash_read(int32_t addr, int32_t *data) {
     uint32_t val = 0;
-    for(int i=0;i<4;i++){
 
-    }
     // 小端方式组装4字节
     val |= (uint32_t)flash_mem[addr + 0];
     val |= (uint32_t)flash_mem[addr + 1] << 8;
@@ -51,7 +49,7 @@ extern "C" void flash_read(int32_t addr, int32_t *data) {
     assert(addr >= 0 && addr + 4 <= FLASH_SIZE);
     // printf("[flash_read] addr = 0x%08x, data = 0x%08x\n", addr, *data);
 }
-*/
+
 
 #ifdef NVBOARD
 #include <nvboard.h>
@@ -209,6 +207,25 @@ int main(int argc, char** argv) {
 // #ifdef WAVE
 //     m_trace->dump(contextp->time());
 // #endif
+
+    // 拉高复位 signal，持续20个时钟周期
+    ysyx_25080201->reset = 1;
+    for (int i = 0; i < 20; ++i)
+    {
+        ysyx_25080201->clock = 0;
+        ysyx_25080201->eval();
+        contextp->timeInc(1);
+#ifdef WAVE
+        m_trace->dump(contextp->time());
+#endif
+        ysyx_25080201->clock = 1;
+        ysyx_25080201->eval();
+        contextp->timeInc(1);
+#ifdef WAVE
+        m_trace->dump(contextp->time());
+#endif
+    }
+    ysyx_25080201->reset = 0; // 复位拉低，进入正常运行
     flash_init(argv[1]);
     printf("\033[38;5;117mLoad_File:%s\033[0m\n", argv[1]);
 #endif

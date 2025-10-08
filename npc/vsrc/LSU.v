@@ -49,9 +49,11 @@ module ysyx_25080201_LSU (
                          2'b10;
     //assign io_lsu_reqValid = valid;
 
-    assign wmask = is_sb_type ? (4'b0001 << waddr_ram[1:0]): 
-            is_sh_type ? (waddr_ram[1] ? 4'b1100 : 4'b0011) :
-            4'b1111;
+assign wmask = io_lsu_wen ? (
+                  is_sb_type ? (4'b0001 << waddr_ram[1:0]) : 
+                  is_sh_type ? (waddr_ram[1] ? 4'b1100 : 4'b0011) : 
+                  4'b1111
+               ) : 4'b0000;
 
     
     // 组合逻辑计算写入数据
