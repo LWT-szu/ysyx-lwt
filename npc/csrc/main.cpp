@@ -9,7 +9,9 @@
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
-extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }
+#define FLASH_SIZE (16 * 1024 * 1024) // 16MB, 
+uint32_t flash_mem[FLASH_SIZE];
+
 
 extern size_t pmem_init(const char *filename);
 VerilatedContext *contextp;
@@ -18,6 +20,38 @@ VerilatedVcdC *m_trace;
 int end; // 单步执行用的end
 FILE *itrace_fp = NULL;// 日志文件指针
 char str[128];// 反汇编字符串
+
+extern "C" void flash_init(const char *bin_path) {
+    FILE *fp = fopen(bin_path, "rb");
+    if (fp == NULL) {
+        perror("Cannot open flash image");
+        exit(1);
+    }else{
+        printf("[flash_init] Opened flash image: %s\n", bin_path);
+    }
+    size_t size = fread(flash_mem, 1, FLASH_SIZE * sizeof(uint32_t), fp);
+    fclose(fp);
+
+    printf("[flash_init] Loaded %zu bytes into flash from %s\n", size, bin_path);
+    assert(size > 0);
+}
+extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }
+/*
+extern "C" void flash_read(int32_t addr, int32_t *data) {
+    uint32_t val = 0;
+    for(int i=0;i<4;i++){
+
+    }
+    // 小端方式组装4字节
+    val |= (uint32_t)flash_mem[addr + 0];
+    val |= (uint32_t)flash_mem[addr + 1] << 8;
+    val |= (uint32_t)flash_mem[addr + 2] << 16;
+    val |= (uint32_t)flash_mem[addr + 3] << 24;
+    *data = val;
+    assert(addr >= 0 && addr + 4 <= FLASH_SIZE);
+    // printf("[flash_read] addr = 0x%08x, data = 0x%08x\n", addr, *data);
+}
+*/
 
 #ifdef NVBOARD
 #include <nvboard.h>
@@ -175,10 +209,10 @@ int main(int argc, char** argv) {
 // #ifdef WAVE
 //     m_trace->dump(contextp->time());
 // #endif
-    pmem_init(argv[1]);
+    flash_init(argv[1]);
+    printf("\033[38;5;117mLoad_File:%s\033[0m\n", argv[1]);
 #endif
 
-    printf("\033[38;5;117mLoad_File:%s\033[0m\n", argv[1]);
 
 #ifdef CONFIG_NPC_ITRACE
     init_disassemble();
@@ -276,20 +310,3 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-/*if(count >=0){
-    printf("======================start==========================\n");
-    printf("pc=%08x, sp=%08x,gp=%08x, tp=%08x, s0=%08x, a0=%08x, a1=%08x\n",
-           ysyx_25080201->pc, ysyx_25080201->sp, ysyx_25080201->gp, ysyx_25080201->tp, ysyx_25080201->s0, ysyx_25080201->a0, ysyx_25080201->a1);
-    printf("count=%d,inst_out=%08x,alu_ram=0x%08x\n", count,ysyx_25080201->inst_out, ysyx_25080201->alu_ram);
-    printf("\n");
-}
-    count++;
-*/
-
-/*void pmem_init(){
-    pmem[(0x00000000 >> 2)] = 0x01400513; // addi a0, zero, 20 (x10 = 20)
-    pmem[(0x00000004 >> 2)] = 0x00800593; // addi a1, zero, 8 (x11 = 8)
-    pmem[(0x00000008 >> 2)] = 0x00b50533; // add a0, a0, a1 (x10 = x10 + x11 = 28)
-    pmem[(0x0000000c >> 2)] = 0x00a50513; // addi a0, a0, 10 (x10 = x10 + 10 = 38)
-    pmem[(0x00000010 >> 2)] = 0x00100073; // ebreak
-}*/
