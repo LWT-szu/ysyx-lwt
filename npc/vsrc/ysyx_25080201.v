@@ -183,7 +183,7 @@ module ysyx_25080201 (
 
     .io_ifu_addr(io_ifu_addr),//请求读存储器地址 pc
     .inst_out(inst_out),//输出指令
-    .inst_valid(inst_valid),
+    //.inst_valid(inst_valid),
     .io_ifu_reqValid(io_ifu_reqValid),
     .state_wait(state_wait)
   );
@@ -191,7 +191,7 @@ module ysyx_25080201 (
   ysyx_25080201_IDU IDU_init(
   .inst_ym(inst_out),//inst_out
   .pc(pc),
-  .inst_valid(inst_valid),
+  .io_ifu_respValid(io_ifu_respValid),
   .clock(clock),
 
   .IDU_imm(imm),//
@@ -321,8 +321,7 @@ module ysyx_25080201 (
   .reg_waddr(wb_rd),          // 写入地址rd
   .wen(wb_wen),               // 写使能
   .io_ifu_rdata(io_ifu_rdata),
-  .inst_valid(inst_valid),
-  .reg_load_wait(reg_load_wait),
+  .lsu_done(lsu_done),
   
   .rs1_data(rs1_data),
   .rs2_data(rs2_data)
@@ -342,8 +341,7 @@ module ysyx_25080201_RegisterFile(
   input [3:0] reg_waddr,      // 接收要写入的地址rd
   input wen,                  // 写使能
   input [31:0]io_ifu_rdata,
-  input inst_valid,
-  input reg_load_wait,
+  input lsu_done,
 
   output  [31:0] rs1_data,
   output  [31:0] rs2_data
@@ -354,7 +352,7 @@ module ysyx_25080201_RegisterFile(
   always @(posedge clock) begin
     //$display("reg_wdata=0x%08x",reg_wdata);
     //$display("reg_waddr=%05b",reg_waddr);
-    if (reg_load_wait || (wen && reg_waddr != 0)) begin
+    if (lsu_done || (wen && reg_waddr != 0)) begin
       rf[reg_waddr] <= reg_wdata; // 0号寄存器保护  
       //$display("Write Reg: pc=%08x, x[%0d]=%08x", pc, reg_waddr, reg_wdata);
       //$display("a0=0x%08x",rf[10]);

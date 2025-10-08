@@ -2,7 +2,7 @@
 module ysyx_25080201_IDU (
   input [31:0]inst_ym,
   input [31:0]pc,
-  input inst_valid,//指令是否有效
+  input io_ifu_respValid,//指令是否有效
   input clock,
 
   output reg [31:0]IDU_imm,
@@ -62,7 +62,7 @@ module ysyx_25080201_IDU (
     csr_write    = 0;
     //idu_inst  <= inst_out; 
     //idu_valid <= inst_valid;//指令是否有效
-    if (inst_valid) begin
+    if (io_ifu_respValid) begin
 
       // 指令类型译码与控制信号生成
       case (inst_ym[6:0])
@@ -291,7 +291,7 @@ module ysyx_25080201_IDU (
         end
 
         default: begin
-          $display("2.Unknown/illegal inst_valid: %d instruction: %08x at pc=%08x", inst_valid,inst_ym, pc);
+          $display("2.Unknown/illegal io_ifu_respValid: %d instruction: %08x at pc=%08x", io_ifu_respValid,inst_ym, pc);
           halt(pc,1);
         end
       endcase
