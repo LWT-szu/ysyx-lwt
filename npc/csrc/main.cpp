@@ -164,17 +164,17 @@ int main(int argc, char** argv) {
     //printf("[DEBUG] pc = 0x%08x\n",ysyx_25080201->pc);
     init_difftest(imge_size, 0);
 #else
-    ysyx_25080201->reset = 1;
-    ysyx_25080201->clock = 0;ysyx_25080201->eval();contextp->timeInc(1);
-#ifdef WAVE
-    m_trace->dump(contextp->time());
-#endif
-    ysyx_25080201->clock = 1;ysyx_25080201->eval();contextp->timeInc(1);
-    // 拉低复位，进入正常运行
-    ysyx_25080201->reset = 0;
-#ifdef WAVE
-    m_trace->dump(contextp->time());
-#endif
+//     ysyx_25080201->reset = 1;
+//     ysyx_25080201->clock = 0;ysyx_25080201->eval();contextp->timeInc(1);
+// #ifdef WAVE
+//     m_trace->dump(contextp->time());
+// #endif
+//     ysyx_25080201->clock = 1;ysyx_25080201->eval();contextp->timeInc(1);
+//     // 拉低复位，进入正常运行
+//     ysyx_25080201->reset = 0;
+// #ifdef WAVE
+//     m_trace->dump(contextp->time());
+// #endif
     pmem_init(argv[1]);
 #endif
 
