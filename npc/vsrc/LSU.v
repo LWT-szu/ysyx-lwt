@@ -44,19 +44,15 @@ module ysyx_25080201_LSU (
     assign io_lsu_wen   = wen_ram;//
     assign io_lsu_wdata = data_ram;//
     assign io_lsu_wmask = wmask;//
+    assign io_lsu_size  = is_sb_type ? 2'b00 : 
+                         is_sh_type ? 2'b01 : 
+                         2'b10;
     //assign io_lsu_reqValid = valid;
 
     assign wmask = is_sb_type ? (4'b0001 << waddr_ram[1:0]): 
             is_sh_type ? (waddr_ram[1] ? 4'b1100 : 4'b0011) :
             4'b1111;
 
-    // always @(*) begin
-    // if (valid && !wen_ram)begin
-    //     load_wait = 1'b1;
-    // end else begin
-    //     load_wait = 1'b0;
-    //     end
-    // end
     
     // 组合逻辑计算写入数据
     always @(*) begin

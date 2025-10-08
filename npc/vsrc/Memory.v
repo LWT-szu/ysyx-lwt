@@ -4,10 +4,10 @@ module ysyx_25080201_MEM(
   input clock,
   input reset,
   input [31:0] io_ifu_addr,
-  input inst_valid,
+  //input inst_valid,
   input io_ifu_reqValid,
   input load_wait,
-  input state_wait,
+  //input state_wait, -> io_ifu_respValid
   
   input [31:0] io_lsu_addr,
   input        io_lsu_wen,
@@ -21,7 +21,6 @@ module ysyx_25080201_MEM(
   output reg reg_load_wait,
   output reg io_ifu_respValid
 );
-  reg state_fan = !state_wait;
   always @(posedge clock) begin
     if(reset) begin
       io_lsu_respValid <= 0;

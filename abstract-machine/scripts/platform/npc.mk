@@ -26,7 +26,7 @@ image: image-dep
 	@$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin
 
 NPC_HOME ?= /home/lwt/ysyx-workbench/npc
-NPC_BIN ?= $(NPC_HOME)/build/top
+NPC_BIN ?= $(NPC_HOME)/build/ysyx_25080201
 run: insert-arg
 	$(MAKE) -C $(NPC_HOME) && $(NPC_BIN) $(IMAGE).bin $(NPCARGS)   +trace 
 #传递程序镜像

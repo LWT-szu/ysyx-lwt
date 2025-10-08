@@ -9,6 +9,8 @@
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
+extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }
+
 extern size_t pmem_init(const char *filename);
 VerilatedContext *contextp;
 Vysyx_25080201 *ysyx_25080201;

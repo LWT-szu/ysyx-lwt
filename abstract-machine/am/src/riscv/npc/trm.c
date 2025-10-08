@@ -28,7 +28,7 @@ void _trm_init() {
   // ysyx_ascii = 'ysyx' = 0x79737978
   asm volatile("csrrw %0,mvendorid,%1" : "=r"(ysyx_ascii) : "r"(dummy));//
   asm volatile("csrrw %0,marchid,%1" : "=r"(stuid) : "r"(dummy));
-  //printf("ysyx_ascii = 0x%x, stuid = 0d%d\n", ysyx_ascii, stuid);
+  //printf("ysyx_ascii = 0x%x, stuid = %x\n", ysyx_ascii, stuid);
   //printf("Welcome to -NPC!\n");
   int ret = main(mainargs);
   halt(ret);

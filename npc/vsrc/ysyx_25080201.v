@@ -1,58 +1,36 @@
 import "DPI-C" function void halt(input int pc,input int halt_ret);
 module ysyx_25080201 (
-  input clock,
-  input reset,
-  //input [31:0]inst,
-  output w_ram,
-  output is_load_type,
-  output inst_valid,
-  output reg_load_wait,
-  output reg wd,
-  output reg wl,
-  output [31:0]pc,
-  output [31:0]io_ifu_rdata,
+    input  clock,
+    input  reset,
+    output reg [31:0] io_ifu_addr,
+    output reg        io_ifu_reqValid,
+    output reg [31:0] io_ifu_rdata,
+    output reg        io_ifu_respValid,
 
-  output [31:0] rf[31:0],
-  output [31:0] rs2_data,
-  output [31:0] rdata_ram,
-  output [31:0] wdata_ram,
-  output [31:0] alu_ram,//addr
-  output [31:0] inst_out,
-  output [31:0] zero,//zero
-  output [31:0] ra,//ra
-
-  output [31:0] sp,//sp
-  output [31:0] gp,//gp
-  output [31:0] tp,//tp
-  output [31:0] t0,//tp
-  output [31:0] t1,//tp
-  output [31:0] t2,//tp
-  
-  output [31:0] s0,//s0
-  output [31:0] s1,//s1
-
-  output [31:0] a0,//a0
-  output [31:0] a1,//a1
-  output [31:0] a2,//a2
-  output [31:0] a3,//a3
-  output [31:0] a4,//a4
-  output [31:0] a5//a5
-  
-);
+    output reg [31:0] io_lsu_addr,
+    output reg        io_lsu_reqValid,
+    output reg [31:0] io_lsu_rdata,
+    output reg        io_lsu_respValid,
+    output reg [1:0]  io_lsu_size,
+    output         io_lsu_wen,
+    output reg [31:0] io_lsu_wdata,
+    output [3:0]  io_lsu_wmask
+); 
 
   //打印寄存器看看
+  /*
   genvar i;
-  generate
+  generate 
     for (i = 0; i < 16; i = i + 1) begin : rf_export
       assign rf[i] = RegisterFile_init.rf[i];
     end
   endgenerate
-
+  */
   wire [31:0]next_pc;      // 下一条指令的 PC，由 WBU 产生
   //wire [31:0]io_ifu_rdata;//存储器发送的数据 MEM-->IFU
-  wire [31:0]io_ifu_addr;//读地址IFU-->MEM
+  //wire [31:0]io_ifu_addr;//读地址IFU-->MEM
 
-  //wire [31:0]inst_out;     // IFU 输出的指令（传给 IDU）
+  wire [31:0]inst_out;     // IFU 输出的指令（传给 IDU）
 
   wire [31:0]imm;          // 立即数解码结果（IDU -> EXU）
   wire [3:0]rd;            // 写回寄存器号（IDU -> WBU）
@@ -68,8 +46,8 @@ module ysyx_25080201 (
   wire Jump_en;
   wire add_alu;
   wire ls_vaild;   //访存
-  //wire w_ram;
-  //wire is_load_type;
+  wire w_ram;
+  wire is_load_type;
   wire is_lbu_type;
   wire is_sb_type;
   wire is_sh_type;
@@ -77,17 +55,17 @@ module ysyx_25080201 (
   wire is_lh_type;
   wire is_lhu_type;
 
-  //wire inst_valid;//指令是否有效
-  wire io_ifu_reqValid;
+  wire inst_valid;//指令是否有效
+  //wire io_ifu_reqValid;
   wire load_wait; // load指令等待信号
   wire state_wait;
-  //wire reg_load_wait; //load指令next等待信号WBU->RegFile
+  wire reg_load_wait; //load指令next等待信号WBU->RegFile
 
   wire [31:0]rs1_data;     // 源寄存器数据（RegisterFile -> EXU）
-  //wire [31:0]rs2_data;
+  wire [31:0]rs2_data;
   wire [31:0]alu_result;   // ALU 计算结果（EXU -> WBU）
-  //wire [31:0]alu_ram;
-  //wire [31:0]rdata_ram;
+  wire [31:0]alu_ram;
+  wire [31:0]rdata_ram;
   wire branch_taken;
   wire [31:0]branch_target;
 
@@ -96,26 +74,27 @@ module ysyx_25080201 (
   wire [3:0] wb_rd;        // 写回寄存器号（WBU -> RegisterFile）
   wire csr_write;         // 是否为CSR寄存器写入
 
-  reg [31:0] pc_reg = 32'h80000000;       //保存当前 PC值,实现顺序执行和跳转
-  assign pc = pc_reg;      //pc_reg的“输出端口”
+  reg [31:0] pc_reg = 32'h30000000;       //保存当前 PC值,实现顺序执行和跳转
+  reg [31:0] pc;
+  assign pc[31:0] = pc_reg;      //pc_reg的“输出端口”
 
   //================LSU======================
-  wire [31:0] io_lsu_rdata;//从MEM中读取数据 MEM->LSU
+  //wire [31:0] io_lsu_rdata;//从MEM中读取数据 MEM->LSU
   //
-  wire [31:0] io_lsu_addr;//LSU->MEM
-  wire        io_lsu_wen;
-  wire [31:0] io_lsu_wdata;
-  wire [ 3:0] io_lsu_wmask;
-  wire        io_lsu_respValid;//返回给 CPU (LSU)      告诉 CPU：“我已经把你要的数据准备好了，现在你可以用 rdata/结果了！”
-  wire        io_lsu_reqValid;//发给存储器（MEM）    告诉存储器：“我现在真的有一个读/写请求了，请你处理！”
+  //wire [31:0] io_lsu_addr;//LSU->MEM
+  //wire        io_lsu_wen;
+  //wire [31:0] io_lsu_wdata;
+  //wire [ 3:0] io_lsu_wmask;
+  //wire        io_lsu_respValid;//返回给 CPU (LSU)      告诉 CPU：“我已经把你要的数据准备好了，现在你可以用 rdata/结果了！”
+  //wire        io_lsu_reqValid;//发给存储器（MEM）    告诉存储器：“我现在真的有一个读/写请求了，请你处理！”
   wire        lsu_done; //访存完成标志
-  wire        io_ifu_respValid;
+  //wire        io_ifu_respValid;
   wire        LSU_WAIT;
-  wire [ 1:0] io_lsu_size;//  I/O
+  //wire [ 1:0] io_lsu_size;//  I/O
   //================LSU======================
 
   //激励文件中寄存器赋值读取
-  
+  /*
   assign zero = RegisterFile_init.rf[0];
   assign ra = RegisterFile_init.rf[1];
   assign sp = RegisterFile_init.rf[2];//sp
@@ -129,6 +108,7 @@ module ysyx_25080201 (
   assign a3 = RegisterFile_init.rf[13];//a3
   assign a4 = RegisterFile_init.rf[14];//a4
   assign a5 = RegisterFile_init.rf[15];//a5
+  */
 //================CSR======================
   reg [63:0] mcycle;//cycle计数器
   reg [63:0] wbu_mcycle;//wbu cycle mcycle需要用一个中间变量暂存,然后在顶层模块赋值
@@ -139,21 +119,21 @@ module ysyx_25080201 (
   always @(posedge clock or posedge reset) begin
     
     if (reset==1)begin
-      pc_reg <= 32'h80000000;
+      pc_reg <= 32'h30000000;
       mcycle <= 0;
       //$display("Top Reset: pc=%08x reset=%d", pc_reg,reset);
-    end else if(csr_write && state_wait && !LSU_WAIT) begin
+    end else if(csr_write && io_ifu_respValid && !LSU_WAIT) begin
       mcycle <= wbu_mcycle;
       pc_reg <= next_pc; 
-      wd <= state_wait || lsu_done;
-      wl <= state_wait && !load_wait;
+      //wd <= state_wait || lsu_done;
+      //wl <= state_wait && !load_wait;
       // 只有在没有load等待、且指令有效时才允许更新PC
-    end else if(state_wait && !(LSU_WAIT || load_wait || lsu_done)) begin //load指令外的普通指令PC更新,防止译码延迟
+    end else if(io_ifu_respValid && !(LSU_WAIT || load_wait || lsu_done)) begin //load指令外的普通指令PC更新,防止译码延迟
     //同时也能预防译码的延迟，因为此时load相关的信号为0
       pc_reg <= next_pc;
       mcycle <= mcycle + 1;
-      wl <= state_wait && !load_wait;
-      wd <= state_wait || lsu_done;
+      //wl <= state_wait && !load_wait;
+      //wd <= state_wait || lsu_done;
       //$display("Top Reset: inst_valid=%d ", inst_valid);
     
     end else if (lsu_done) begin//load,store指令的PC更新 防止读取内存延迟 
@@ -178,7 +158,7 @@ module ysyx_25080201 (
   .inst_valid(inst_valid),
   .io_ifu_reqValid(io_ifu_reqValid),
   .load_wait(load_wait),
-  .state_wait(state_wait),
+  //.state_wait(state_wait), -> io_ifu_respValid
 
   .io_lsu_addr(io_lsu_addr),//LSU->MEM
   .io_lsu_wen(io_lsu_wen),

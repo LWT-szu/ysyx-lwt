@@ -16,7 +16,8 @@
 
 
 # 基本配置
-TOPNAME = ysyx_25080201
+#TOPNAME = ysyx_25080201
+TOPNAME = ysyxSoCFull
 NXDC_FILES = constr/ysyx_25080201.nxdc
 INC_PATH ?=
 
@@ -28,9 +29,12 @@ BIN = $(BUILD_DIR)/$(TOPNAME)
 # Verilator配置
 VERILATOR = verilator
 VERILATOR_CFLAGS += -MMD --build --trace -cc -O3 --x-assign fast --x-initial fast --noassert
-
+VERILATOR_CFLAGS += -I$(abspath ../ysyxSoC/perip/uart16550/rtl) -I$(abspath ../ysyxSoC/perip/spi/rtl)
+VERILATOR_CFLAGS += --timescale "1ns/1ns" --no-timing
 # 文件路径
-VSRCS = $(shell find $(abspath ./vsrc) -name "*.v") 
+VSRCS = $(shell find $(abspath ./vsrc) -name "*.v") \
+		$(shell find $(abspath ../ysyxSoC/perip) -name "*.v") \
+		$(abspath ../ysyxSoC/ready-to-run/D-stage/ysyxSoCFull.v)
 CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp")
 
 #SRC_AUTO_BIND = $(abspath $(BUILD_DIR)/auto_bind.cpp)
