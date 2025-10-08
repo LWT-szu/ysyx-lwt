@@ -53,7 +53,13 @@ module ysyx_25080201_IFU (
                   io_ifu_reqValid <= 1;
                 end
             end
-          end
+          end  else if(!io_ifu_respValid && (load_wait || LSU_WAIT)) begin// 只有 lsu_done==1 才能转IDLE
+                if (lsu_done) begin//防止延迟
+                  state <= IDLE;
+                  inst_valid <= 0;//next 第一周期不译码 
+                  io_ifu_reqValid <= 1;
+                end
+            end
 
         end
       endcase

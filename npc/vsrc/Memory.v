@@ -4,10 +4,7 @@ module ysyx_25080201_MEM(
   input clock,
   input reset,
   input [31:0] io_ifu_addr,
-  //input inst_valid,
   input io_ifu_reqValid,
-  input load_wait,
-  //input state_wait, -> io_ifu_respValid
   
   input [31:0] io_lsu_addr,
   input        io_lsu_wen,
@@ -18,29 +15,23 @@ module ysyx_25080201_MEM(
   output reg [31:0] io_lsu_rdata,
 
   output reg [31:0] io_ifu_rdata,
-  output reg reg_load_wait,
   output reg io_ifu_respValid
 );
+  //reg state_fan = !state_wait;
   always @(posedge clock) begin
     if(reset) begin
       io_lsu_respValid <= 0;
       io_lsu_rdata <= 32'b0;
       io_ifu_rdata <= 32'b0;
-      reg_load_wait <= 1'b0;
       io_ifu_respValid <= 1'b0;
       //$display("reset mem = %d",reset);
       //$display("reset io_ifu_addr = 0x%08x",io_ifu_addr);
     end else if(io_ifu_reqValid) begin
       io_ifu_rdata <= pmem_read(io_ifu_addr,io_ifu_addr,0,0);  // IDLE请求译码
-      reg_load_wait <= 1'b0;
       io_ifu_respValid <= 1'b1;
 
-    end else if (load_wait) begin     //WAIT
-      reg_load_wait <= 1'b1;
-      io_ifu_respValid <= 1'b1;
     end else begin                    //一般情况
       io_ifu_rdata <= 0;
-      reg_load_wait <= 1'b0;
       io_ifu_respValid <= 1'b0;
     end
 
