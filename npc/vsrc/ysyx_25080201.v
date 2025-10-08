@@ -150,16 +150,12 @@ module ysyx_25080201 (
     end
     */
   end
-
+/*
   ysyx_25080201_MEM MEM_init (
   .clock(clock),
   .reset(reset),
   .io_ifu_addr(io_ifu_addr),
-  .inst_valid(inst_valid),
   .io_ifu_reqValid(io_ifu_reqValid),
-  .load_wait(load_wait),
-  //.state_wait(state_wait), -> io_ifu_respValid
-
   .io_lsu_addr(io_lsu_addr),//LSU->MEM
   .io_lsu_wen(io_lsu_wen),
   .io_lsu_wdata(io_lsu_wdata),
@@ -168,12 +164,10 @@ module ysyx_25080201 (
   .io_lsu_respValid(io_lsu_respValid),//返回给 CPU (LSU)      告诉 CPU：“我已经把你要的数据准备好了，现在你可以用 rdata/结果了！”
 
   .io_lsu_rdata(io_lsu_rdata),//MEM->LSU
-
   .io_ifu_rdata(io_ifu_rdata),
-  .reg_load_wait(reg_load_wait),
   .io_ifu_respValid(io_ifu_respValid)
 );
-
+*/
 
   //取指
   ysyx_25080201_IFU IFU_init(

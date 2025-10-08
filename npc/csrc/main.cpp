@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include "npc.h"
 
-#include "Vysyx_25080201.h"
+#include "VysyxSoCFull.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
@@ -13,7 +13,7 @@ extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }
 
 extern size_t pmem_init(const char *filename);
 VerilatedContext *contextp;
-Vysyx_25080201 *ysyx_25080201;
+VysyxSoCFull *ysyx_25080201;
 VerilatedVcdC *m_trace;
 int end; // 单步执行用的end
 FILE *itrace_fp = NULL;// 日志文件指针
@@ -22,7 +22,7 @@ char str[128];// 反汇编字符串
 #ifdef NVBOARD
 #include <nvboard.h>
     void
-    nvboard_bind_all_pins(Vysyx_25080201 *ysyx_25080201);
+    nvboard_bind_all_pins(VysyxSoCFull *ysyx_25080201);
 #endif
 
 const char *reg[32] = {
@@ -57,7 +57,7 @@ void cpu_exec(int n,int print_inst){
                 fprintf(itrace_fp, "0x%08x:      %08x      %s\n", ysyx_25080201->pc, ysyx_25080201->inst_out, str);//log ebreak
                 fprintf(itrace_fp, "\033[38;5;117mNPC : HIT GOOD TRAP at pc = 0x%08x\033[0m\n", npc_state.halt_pc);
 #endif
-                printf("\033[38;5;117ma0 = %08x\033[0m\n", ysyx_25080201->a0);
+                //printf("\033[38;5;117ma0 = %08x\033[0m\n", ysyx_25080201->a0);
                 printf("\033[38;5;117mNPC : HIT GOOD TRAP at pc = 0x%08x\033[0m\n", npc_state.halt_pc);
                 end = 1;
             }else{
@@ -65,7 +65,7 @@ void cpu_exec(int n,int print_inst){
                 npc_disassemble(str, sizeof(str), ysyx_25080201->pc, ysyx_25080201->inst_out);
                 fprintf(itrace_fp, "0x%08x:      %08x      %s\n", ysyx_25080201->pc, ysyx_25080201->inst_out, str);
 #endif
-                printf("\033[1;31mError instruction(main_debug) : %08x\33[0m\n", ysyx_25080201->inst_out);
+                //printf("\033[1;31mError instruction(main_debug) : %08x\33[0m\n", ysyx_25080201->inst_out);
                 printf("\033[1;31mNPC : HIT BAD TRAP at pc = 0x%08x\033[0m\n", npc_state.halt_pc);
             }
             break;
@@ -90,7 +90,7 @@ void cpu_exec(int n,int print_inst){
         // 只在单步/si时打印
         if (print_inst){
             //printf("          0x%08x \n",ysyx_25080201->inst_out);
-            npc_disassemble(str,sizeof(str), ysyx_25080201->pc, ysyx_25080201->inst_out);
+            //npc_disassemble(str,sizeof(str), ysyx_25080201->pc, ysyx_25080201->inst_out);
 #ifdef LOG
             if(itrace_fp){
                 fprintf(itrace_fp, "0x%08x:      %08x      %s", ysyx_25080201->pc, ysyx_25080201->inst_out, str);
@@ -102,22 +102,19 @@ void cpu_exec(int n,int print_inst){
                 fflush(itrace_fp);
             }
 #endif
-            uint8_t inst_byte[4]; // 单步si打印,两个字节分开输出
-            inst_byte[0] = ysyx_25080201->inst_out & 0xFF;
-            inst_byte[1] = (ysyx_25080201->inst_out >> 8 ) & 0xFF;
-            inst_byte[2] = (ysyx_25080201->inst_out >> 16 ) & 0xFF;
-            inst_byte[3] = (ysyx_25080201->inst_out >> 24 ) & 0xFF;
-            printf("0x%08x: %02x %02x %02x %02x %s\n", ysyx_25080201->pc, inst_byte[3], inst_byte[2], inst_byte[1], inst_byte[0],str);
+            // uint8_t inst_byte[4]; // 单步si打印,两个字节分开输出
+            // inst_byte[0] = ysyx_25080201->inst_out & 0xFF;
+            // inst_byte[1] = (ysyx_25080201->inst_out >> 8 ) & 0xFF;
+            // inst_byte[2] = (ysyx_25080201->inst_out >> 16 ) & 0xFF;
+            // inst_byte[3] = (ysyx_25080201->inst_out >> 24 ) & 0xFF;
+            // printf("0x%08x: %02x %02x %02x %02x %s\n", ysyx_25080201->pc, inst_byte[3], inst_byte[2], inst_byte[1], inst_byte[0],str);
         }
 /* ==================== NPC_ITRAC ==================== */
         
-        //ysyx_25080201->clock = !ysyx_25080201->clock; // 不断翻转，产生周期性的时钟信号
     #ifdef NVBOARD
         nvboard_update();
     #endif
         
-        //ysyx_25080201->eval();
-        //printf("new version!\n");
         // 下降沿
         ysyx_25080201->clock = 1;ysyx_25080201->eval();contextp->timeInc(1); // 再推进到 t+2
     #ifdef WAVE
@@ -146,7 +143,7 @@ int main(int argc, char** argv) {
     contextp->traceEverOn(true);
 #endif
     contextp->commandArgs(argc, argv);
-    ysyx_25080201 = new Vysyx_25080201{contextp}; // Vysyx_25080201* ysyx_25080201
+    ysyx_25080201 = new VysyxSoCFull{contextp}; // VysyxSoCFull* ysyx_25080201
 
 #ifdef WAVE
     m_trace = new VerilatedVcdC; // VerilatedVcdC* m_trace

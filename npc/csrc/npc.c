@@ -1,6 +1,6 @@
 #include "npc.h"
 #include <dlfcn.h>
-#include "Vysyx_25080201.h"
+#include "VysyxSoCFull.h"
 #include <capstone/capstone.h>
 #include <stdio.h>
 #include <assert.h>
@@ -8,7 +8,7 @@
 #include <readline/history.h>
 #include <stdbool.h>
 #include <sys/time.h>
-extern Vysyx_25080201 *ysyx_25080201;
+extern VysyxSoCFull *ysyx_25080201;
 extern uint32_t pmem[];
 
 NPCState npc_state = { .state = NPC_RUNNING};
@@ -90,7 +90,7 @@ char* npc_readline(const char *prompt){
     if(line && *line) add_history(line);
     return line;
 }
-
+#ifdef CONFIG_DIFFTEST
 // 获取当前NPC寄存器状态
 void reg_curr_state(npc_CPU_state *dst){
     assert(dst != NULL);
@@ -190,6 +190,7 @@ void difftest_step(){
         return;
     }
 }
+#endif
 // 获取当前时间，单位微秒 like nemu
 static uint64_t boot_time = 0;
 uint64_t get_time_in_us()

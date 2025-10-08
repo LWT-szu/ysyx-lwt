@@ -8,8 +8,8 @@
 #define ANSI_FG_RED "\33[1;31m"
 #define ANSI_NONE "\33[0m"
 //#define CONFIG_NPC_MTRACE
-#define CONFIG_NPC_ITRACE
-#define LOG
+//#define CONFIG_NPC_ITRACE
+//#define LOG
 #define RAM_MODE_BIN // 注释掉我，就是加载十六进制文件
 #define SI_TRACE
 #define PMEM_BASE 0x30000000u
