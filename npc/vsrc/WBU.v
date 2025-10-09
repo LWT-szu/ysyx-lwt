@@ -25,6 +25,7 @@ module ysyx_25080201_WBU (
   input state_wait,
   input load_wait,
   input lsu_done,//访存完成标志
+  input is_lw_type,
 
   output wb_wen,
   output [3:0]wb_rd,
@@ -38,8 +39,8 @@ module ysyx_25080201_WBU (
   wire [7:0] lbu_byte;
   wire [15:0] lh_byte;
   reg [31:0] wb_Rresult_reg;
-  reg wen_load ;
-  reg [3:0] rd_load;
+  //reg wen_load ;
+  //reg [3:0] rd_load;
   //reg [31:0] Result_load;
   //reg [31:0] addr_load;
   //reg lbu_wait;
@@ -74,7 +75,7 @@ module ysyx_25080201_WBU (
     else if  (jalr_en || Jal_en)
       wb_Rresult_reg = pc + 32'h4;//jalr jal
 
-    else if(reg_load_wait && !is_lbu_type)
+    else if(is_lw_type)
       wb_Rresult_reg = ram_data;//lw
 
     else if(csr_write)
@@ -120,25 +121,25 @@ module ysyx_25080201_WBU (
 
   end
 
-  always @(posedge clock) begin
-    if(state_wait) begin
-      wen_load <= reg_en;
-      rd_load <= waddr;
-      //Result_load <= wb_Rresult_reg;
-      //lbu_wait <= is_lbu_type;
-      //addr_load <= alu_addr;
-    end else begin
-      wen_load <= 0;
-      rd_load <= 4'b0;
-      Result_load <= 32'b0;
-      //addr_load <= 0;
-    end
-  end
+  // always @(posedge clock) begin
+  //   if(state_wait) begin
+  //     //wen_load <= reg_en;
+  //     //rd_load <= waddr;
+  //     //Result_load <= wb_Rresult_reg;
+  //     //lbu_wait <= is_lbu_type;ddddddddddddddddddddddddddddddd
+  //     //addr_load <= alu_addr;
+  //   end else begin
+  //     //wen_load <= 0;
+  //     //rd_load <= 4'b0;
+  //     //Result_load <= 32'b0;
+  //     //addr_load <= 0;
+  //   end
+  // end
   //load_wait ? 0 : (reg_load_wait ? wen_load : reg_en);
 
   assign wb_Rresult =  wb_Rresult_reg;//区分load指令和普通指令
-  assign wb_wen = load_wait ? 0 : ((reg_load_wait && lsu_done) ? wen_load : reg_en);//区分load指令和普通指令
-  assign wb_rd = reg_load_wait ? rd_load : waddr;//区分load指令和普通指令
+  assign wb_wen = load_wait ? 0 : reg_en;//区分load指令和普通指令 wb_wen && ((is_load_type && io_lsu_respValid) || (!is_load_type && io_ifu_respValid))
+  assign wb_rd =  waddr;//区分load指令和普通指令
 /*
   assign next_pc = jalr_en ? (alu_data & 32'hfffffffe) :
           Jal_en  ? alu_data :

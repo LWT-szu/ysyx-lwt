@@ -4,13 +4,13 @@ module ysyx_25080201 (
     input  reset,
     output reg [31:0] io_ifu_addr,
     output reg        io_ifu_reqValid,
-    output reg [31:0] io_ifu_rdata,
-    output reg        io_ifu_respValid,
+    input reg [31:0] io_ifu_rdata,
+    input reg        io_ifu_respValid,
 
     output reg [31:0] io_lsu_addr,
     output reg        io_lsu_reqValid,
-    output reg [31:0] io_lsu_rdata,
-    output reg        io_lsu_respValid,
+    input reg [31:0] io_lsu_rdata,
+    input reg        io_lsu_respValid,
     output reg [1:0]  io_lsu_size,
     output         io_lsu_wen,
     output reg [31:0] io_lsu_wdata,
@@ -49,6 +49,7 @@ module ysyx_25080201 (
   wire w_ram;
   wire is_load_type;
   wire is_lbu_type;
+  wire is_lw_type;
   wire is_sb_type;
   wire is_sh_type;
   wire is_branch;
@@ -121,20 +122,14 @@ module ysyx_25080201 (
     if (reset==1)begin
       pc_reg <= 32'h30000000;
       mcycle <= 0;
-      //$display("Top Reset: pc=%08x reset=%d", pc_reg,reset);
-    end else if(csr_write && io_ifu_respValid && !LSU_WAIT) begin
+    end else if(csr_write && io_ifu_respValid && !ls_vaild) begin
       mcycle <= wbu_mcycle;
       pc_reg <= next_pc; 
-      //wd <= state_wait || lsu_done;
-      //wl <= state_wait && !load_wait;
       // 只有在没有load等待、且指令有效时才允许更新PC
-    end else if(io_ifu_respValid && !(LSU_WAIT || load_wait || lsu_done)) begin //load指令外的普通指令PC更新,防止译码延迟
+    end else if(io_ifu_respValid && !(ls_vaild)) begin //load指令外的普通指令PC更新,防止译码延迟
     //同时也能预防译码的延迟，因为此时load相关的信号为0
       pc_reg <= next_pc;
       mcycle <= mcycle + 1;
-      //wl <= state_wait && !load_wait;
-      //wd <= state_wait || lsu_done;
-      //$display("Top Reset: inst_valid=%d ", inst_valid);
     
     end else if (lsu_done) begin//load,store指令的PC更新 防止读取内存延迟 
     //即使译码延迟也没关系，因为两周期的指令，在第二个周期译码和lsu_done同时为1
@@ -142,13 +137,6 @@ module ysyx_25080201 (
         mcycle <= mcycle + 1;
     end
     
-    //$display("[PC_DBG] t=%0t reset=%0d pc_reg=%08x", $time, reset, pc_reg);
-    //注意跳转的情况，如果跳到了其他地方，这里不会打印
-/*
-    if(pc < 32'h80000030 && pc > 32'h80000014)begin
-      $display("PC: %08x, inst: %08x, csr_write: %d, next_pc: %08x, mcycle: %08x, mcycleh: %08x", pc_reg, inst_out, csr_write, next_pc, mcycle[31:0], mcycle[63:32]);
-    end
-    */
   end
 /*
   ysyx_25080201_MEM MEM_init (
@@ -179,11 +167,12 @@ module ysyx_25080201 (
     .io_ifu_respValid(io_ifu_respValid),//译码准备好
     .LSU_WAIT(LSU_WAIT),
     .lsu_done(lsu_done),
+    .ls_vaild(ls_vaild),
 
 
     .io_ifu_addr(io_ifu_addr),//请求读存储器地址 pc
     .inst_out(inst_out),//输出指令
-    //.inst_valid(inst_valid),
+    .inst_valid(inst_valid),
     .io_ifu_reqValid(io_ifu_reqValid),
     .state_wait(state_wait)
   );
@@ -209,6 +198,7 @@ module ysyx_25080201 (
   .w_ram(w_ram),          //访存
   .is_load_type(is_load_type),
   .is_lbu_type(is_lbu_type),  //字节区分
+  .is_lw_type(is_lw_type),    //字区分
   .is_sb_type (is_sb_type),
   .is_sh_type(is_sh_type),
   .is_branch(is_branch),
@@ -260,7 +250,9 @@ module ysyx_25080201 (
 
     .io_lsu_respValid(io_lsu_respValid),//MEM返回给 CPU (LSU)      告诉 CPU：“我已经把你要的数据准备好了，现在你可以用 rdata/结果了！”
     .io_lsu_reqValid(io_lsu_reqValid),//发给存储器（MEM）    告诉存储器：“我现在真的有一个读/写请求了，请你处理！”
+    //.io_ifu_respValid(io_ifu_respValid),
     .lsu_done(lsu_done), //访存完成标志
+    .io_ifu_respValid(io_ifu_respValid),
 
     .io_lsu_addr(io_lsu_addr), //读地址
     .io_lsu_wen(io_lsu_wen),
@@ -288,6 +280,7 @@ module ysyx_25080201 (
   .jalr_en(Jump_en),
   .is_load_type(is_load_type),
   .is_lbu_type(is_lbu_type),
+  .is_lw_type(is_lw_type),
   .is_branch(is_branch),
   .is_lh_type(is_lh_type),
   .is_lhu_type(is_lhu_type),

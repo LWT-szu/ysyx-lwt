@@ -91,7 +91,7 @@ sim: $(BIN)
 all: $(BIN)
 
 run: $(BIN)
-	$(BIN) /home/lwt/ysyx-workbench/new.bin +trace
+	$(BIN) /home/lwt/ysyx-workbench/ysyxSoC/ready-to-run/D-stage/hello-minirv-ysyxsoc.bin +trace
 	$(call git_commit, "sim RTL")
 #	./$(BIN) $(IMAGE) +trace  
 # 运行指定的镜像

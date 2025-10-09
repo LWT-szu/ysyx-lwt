@@ -2,7 +2,7 @@
 #ifndef __NPC_H__
 #define __NPC_H__
 
-#define WAVE
+//#define WAVE
 // #define NVBOARD
 #define ANSI_FG_SKYBLUE "\033[38;5;117m"
 #define ANSI_FG_RED "\33[1;31m"

@@ -20,6 +20,7 @@ module ysyx_25080201_IDU (
   output reg w_ram,             // 是否访问RAM（load/store写使能）
   output reg is_load_type,      // 是否为load类型指令（用于WBU选择写回数据）,区分alu_result和alu_RAM
   output reg is_lbu_type,        //字节区分
+  output reg is_lw_type,        //字区分
   output reg is_sb_type,
   output reg is_sh_type,
   output reg is_branch,
@@ -54,6 +55,7 @@ module ysyx_25080201_IDU (
     w_ram        = 0;
     is_load_type = 0;
     is_lbu_type  = 0;
+    is_lw_type   = 0;
     is_sb_type   = 0;
     is_sh_type   = 0;
     is_branch    = 0;
@@ -121,6 +123,7 @@ module ysyx_25080201_IDU (
             if (inst_ym[14:12] == 3'b010) begin // lw
               ls_vaild = 1;
               w_ram    = 0;
+              is_lw_type = 1;
               //$display("lw");
             end else if (inst_ym[14:12] == 3'b100) begin // lbu
               ls_vaild    = 1;
@@ -291,7 +294,7 @@ module ysyx_25080201_IDU (
         end
 
         default: begin
-          $display("2.Unknown/illegal io_ifu_respValid: %d instruction: %08x at pc=%08x", io_ifu_respValid,inst_ym, pc);
+          //$display("2.Unknown/illegal io_ifu_respValid: %d instruction: %08x at pc=%08x", io_ifu_respValid,inst_ym, pc);
               IDU_imm      = 32'b0;
               IDU_rd       = 4'b0;
               IDU_rs1      = 4'b0;
@@ -307,6 +310,7 @@ module ysyx_25080201_IDU (
               w_ram        = 0;
               is_load_type = 0;
               is_lbu_type  = 0;
+              is_lw_type   = 0;
               is_sb_type   = 0;
               is_sh_type   = 0;
               is_branch    = 0;
