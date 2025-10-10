@@ -13,7 +13,7 @@
 #define RAM_MODE_BIN // 注释掉我，就是加载十六进制文件
 #define SI_TRACE
 #define PMEM_BASE 0x30000000u
-#define SERIAL_PORT 0xa00003f8 // 串口（UART）0x10000000
+#define SERIAL_PORT 0x10000000 // 串口（UART）0x10000000 a00003f8
 #define RTC_ADDR 0xa0000048
 #define RTC_ADDR_END 0xa0000050
 //#define CONFIG_DIFFTEST

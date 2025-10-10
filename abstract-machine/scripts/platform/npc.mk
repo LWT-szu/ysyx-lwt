@@ -15,19 +15,22 @@ LDFLAGS   += --gc-sections -e _start
 ###NPCARGS   += -b 
 MAINARGS_MAX_LEN = 64
 MAINARGS_PLACEHOLDER = the_insert-arg_rule_in_Makefile_will_insert_mainargs_here
-CFLAGS += -DMAINARGS_MAX_LEN=$(MAINARGS_MAX_LEN) -DMAINARGS_PLACEHOLDER=$(MAINARGS_PLACEHOLDER)
+CFLAGS += -DMAINARGS_MAX_LEN=$(MAINARGS_MAX_LEN) -DMAINARGS_PLACEHOLDER=$(MAINARGS_PLACEHOLDER) -DMAINARGS=$(mainargs)
 
 insert-arg: image
+	@echo MAINARGS="$(mainargs)"    
 	@python $(AM_HOME)/tools/insert-arg.py $(IMAGE).bin $(MAINARGS_MAX_LEN) $(MAINARGS_PLACEHOLDER) "$(mainargs)"
 
 image: image-dep
+	@echo MAINARGS="$(mainargs)"   
 	@$(OBJDUMP) -d $(IMAGE).elf > $(IMAGE).txt
-	@echo + OBJCOPY "->" $(IMAGE_REL).bin
+	@echo + OBJCOPY "->" $(IMAGE_REL).bin mainargs="$(mainargs)"
 	@$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin
 
 NPC_HOME ?= /home/lwt/ysyx-workbench/npc
 NPC_BIN ?= $(NPC_HOME)/build/ysyxSoCFull
 run: insert-arg
-	$(MAKE) -C $(NPC_HOME) && $(NPC_BIN) $(IMAGE).bin $(NPCARGS)   +trace 
+	@echo MAINARGS="$(mainargs)"
+	$(MAKE) -C $(NPC_HOME) && $(NPC_BIN) $(IMAGE).bin   +trace 
 #传递程序镜像
 .PHONY: insert-arg
