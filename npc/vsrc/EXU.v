@@ -15,7 +15,8 @@ module ysyx_25080201_EXU (
   output reg [31:0]alu_result,// 寄存器写回
   output reg [31:0]alu_ram,    // 访存地址
   output reg branch_taken,
-  output reg [31:0]branch_target
+  output reg [31:0]branch_target,
+  output reg [63:0]alu_csr   // csr读出数据
   //注意去掉逗号！！！！！！！！！！！！！！
 );
   // 选择ALU第二操作数
@@ -120,10 +121,29 @@ module ysyx_25080201_EXU (
       end
 
       7'b1110011: begin // csrrw
-        if(csr_write)begin
+        if(csr_write && func_alu == 3'b001)begin
           case (imm_alu[11:0])
             12'hB00: alu_result = mcycle[31:0]; // mcycle
             12'hB80: alu_result = mcycle[63:32]; // mcycleh
+            default: alu_result = 32'b0;
+          endcase
+        end else if (csr_write && func_alu == 3'b010 )begin//csrrs
+          alu_csr = mcycle;
+          case (imm_alu[11:0])
+            12'hF11: alu_result = 32'h79737978; // mvendorid
+            12'hF12: alu_result = 32'h25080201; // marchid
+            12'hB00: begin
+              alu_result = mcycle[31:0];
+              if(rs1_alu != 0)begin
+                alu_csr = {mcycle[63:32],mcycle[31:0] | rs1_alu }; // mcycle
+              end
+            end
+            12'hB80: begin
+              alu_result = mcycle[63:32];
+              if(rs1_alu != 0)begin
+                alu_csr = {mcycle[63:32] | rs1_alu , mcycle[31:0]}; // mcycleh
+              end
+            end
             default: alu_result = 32'b0;
           endcase
         end

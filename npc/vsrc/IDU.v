@@ -283,8 +283,17 @@ module ysyx_25080201_IDU (
             IDU_imm    = { {20{inst_ym[31]}}, inst_ym[31:20] };//csr地址
             Reg_write  = 1;
             csr_write  = 1;
-            //$display("csrrw");
+          end else if(inst_ym[14:12] == 3'b010)begin//csrrs
+            IDU_opcode = inst_ym[6:0];
+            IDU_func   = inst_ym[14:12];
+            IDU_rs1    = inst_ym[18:15];
+            IDU_rd     = inst_ym[10:7];
+            IDU_imm    = { {20{inst_ym[31]}}, inst_ym[31:20] };//csr地址
+            Reg_write  = 1;
+            csr_write  = 1;
           end
+            //$display("csrrw");
+          
         
           else begin
             //$display("========");

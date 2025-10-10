@@ -94,27 +94,12 @@ module ysyx_25080201 (
   //wire [ 1:0] io_lsu_size;//  I/O
   //================LSU======================
 
-  //激励文件中寄存器赋值读取
-  /*
-  assign zero = RegisterFile_init.rf[0];
-  assign ra = RegisterFile_init.rf[1];
-  assign sp = RegisterFile_init.rf[2];//sp
-  assign gp = RegisterFile_init.rf[3];//gp
-  assign tp = RegisterFile_init.rf[4];//tp
-  assign s0 = RegisterFile_init.rf[8];//s0
-  assign s1 = RegisterFile_init.rf[9];//s1
-  assign a0 = RegisterFile_init.rf[10];//a0
-  assign a1 = RegisterFile_init.rf[11];//a1
-  assign a2 = RegisterFile_init.rf[12];//a2
-  assign a3 = RegisterFile_init.rf[13];//a3
-  assign a4 = RegisterFile_init.rf[14];//a4
-  assign a5 = RegisterFile_init.rf[15];//a5
-  */
 //================CSR======================
   reg [63:0] mcycle;//cycle计数器
   reg [63:0] wbu_mcycle;//wbu cycle mcycle需要用一个中间变量暂存,然后在顶层模块赋值
   reg [31:0] mvendorid = 32'h79737978;//ysyx 32'h79737978
   reg [31:0] marchid = 32'h25080201;//STUDENT_ID 32'h017EB189 32'd2025080201
+  reg [63:0] alu_csr; // csr读出数据
 //================CSR======================
   
   always @(posedge clock or posedge reset) begin
@@ -130,7 +115,6 @@ module ysyx_25080201 (
     //同时也能预防译码的延迟，因为此时load相关的信号为0
       pc_reg <= next_pc;
       mcycle <= mcycle + 1;
-    
     end else if (lsu_done) begin//load,store指令的PC更新 防止读取内存延迟 
     //即使译码延迟也没关系，因为两周期的指令，在第二个周期译码和lsu_done同时为1
         pc_reg <= next_pc;
@@ -226,7 +210,8 @@ module ysyx_25080201 (
   .alu_result(alu_result), //output
   .alu_ram(alu_ram),
   .branch_taken(branch_taken),
-  .branch_target(branch_target)
+  .branch_target(branch_target),
+  .alu_csr(alu_csr)
   //注意去掉逗号！！！！！！！！！！！！！！
 );
 
@@ -294,6 +279,8 @@ module ysyx_25080201 (
   .state_wait(state_wait),
   .load_wait(load_wait),
   .lsu_done(lsu_done),//访存完成标志
+  .alu_csr(alu_csr),  // csr读出数据
+  .func(func),
 
   .wb_wen(wb_wen),//  output  wb_wen = reg_en
   .wb_rd(wb_rd),

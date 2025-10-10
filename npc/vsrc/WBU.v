@@ -26,6 +26,8 @@ module ysyx_25080201_WBU (
   input load_wait,
   input lsu_done,//访存完成标志
   input is_lw_type,
+  input [63:0] alu_csr,   // csr读出数据
+  input [2:0] func,
 
   output wb_wen,
   output [3:0]wb_rd,
@@ -81,13 +83,19 @@ module ysyx_25080201_WBU (
     else if(csr_write)
       case(csr_addr)
         12'hB00: begin
-          wb_Rresult_reg = alu_data; // mcycle
-          wbu_mcycle = {mcycle[63:32], rs1_data}; // 低32位写入rs1_data
+          wb_Rresult_reg = alu_data; // mcycle 读出当前CSR值到rd
+          if(func == 3'b010 && rs1_data != 0)
+              wbu_mcycle = alu_csr;
+          else
+              wbu_mcycle = {mcycle[63:32], rs1_data}; // 低32位写入rs1_data
         end
 
         12'hB80: begin
-          wb_Rresult_reg = alu_data; // mcycleh
-          wbu_mcycle = {rs1_data , mcycle[31:0]}; // 高32位写入rs1_data
+          wb_Rresult_reg = alu_data; // mcycleh 读出当前CSR值到rd
+          if(func == 3'b010 && rs1_data != 0)
+              wbu_mcycle = alu_csr;
+          else
+              wbu_mcycle = {rs1_data , mcycle[31:0]}; // 高32位写入rs1_data
         end
 
         12'hF11: begin
