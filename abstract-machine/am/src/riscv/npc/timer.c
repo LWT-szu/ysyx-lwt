@@ -56,7 +56,7 @@ static uint64_t get_time()
 void __am_timer_init()
 {
   base_time = get_time(); // 当前系统微秒计数（作为参考点）
-  base_rtc = 1760140800;  // 2025年10月11日 00:00:00 UTC
+  base_rtc = 1758672000;  // 2025年10月11日 00:00:00 UTC
 }
 
 void __am_timer_uptime(AM_TIMER_UPTIME_T *uptime)
