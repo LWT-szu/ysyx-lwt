@@ -87,6 +87,8 @@ sim: $(BIN)
 	$(call git_commit, "sim RTL")
 	./$(BIN) $(IMAGE) +trace
 
+lint:
+	verilator --lint-only -Wall $(shell find $(abspath ./vsrc) -name "*.v")
 # 其他目标
 all: $(BIN)
 

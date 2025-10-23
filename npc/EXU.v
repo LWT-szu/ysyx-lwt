@@ -125,13 +125,13 @@ module ysyx_25080201_EXU (
           case (imm_alu[11:0])
             12'hB00: alu_result = mcycle[31:0]; // mcycle
             12'hB80: alu_result = mcycle[63:32]; // mcycleh
-            default: alu_result = 32'b0;
+            12'hF11, 12'hF12: ;  // 只读 CSR，不允许写
+            default: ;
           endcase
         end else if (csr_write && func_alu == 3'b010 )begin//csrrs
           alu_csr = mcycle;
           case (imm_alu[11:0])
-            12'hF11: alu_result = 32'h79737978; // mvendorid
-            12'hF12: alu_result = 32'h25080201; // marchid
+            12'hF11, 12'hF12: ; // 只读 CSR
             12'hB00: begin
               alu_result = mcycle[31:0];
               if(rs1_alu != 0)begin
