@@ -1,6 +1,3 @@
-`ifdef VERILATOR
-import "DPI-C" function void halt(input int pc,input int halt_ret);
-`endif
 module ysyx_25080201 (
     input  clock,
     input  reset,
@@ -21,8 +18,7 @@ module ysyx_25080201 (
 
 
   wire [31:0]next_pc;      // 下一条指令的 PC，由 WBU 产生
-  //wire [31:0]io_ifu_rdata;//存储器发送的数据 MEM-->IFU
-  //wire [31:0]io_ifu_addr;//读地址IFU-->MEM
+
 
   wire [31:0]inst_out;     // IFU 输出的指令（传给 IDU）
 
@@ -49,11 +45,7 @@ module ysyx_25080201 (
   wire is_branch;
   wire is_lh_type;
   wire is_lhu_type;
-
-
   wire load_wait; // load指令等待信号
-  //wire state_wait;
-  //wire reg_load_wait; //load指令next等待信号WBU->RegFile
 
   wire [31:0]rs1_data;     // 源寄存器数据（RegisterFile -> EXU）
   wire [31:0]rs2_data;
@@ -126,16 +118,11 @@ module ysyx_25080201 (
 
     .io_ifu_addr(io_ifu_addr),//请求读存储器地址 pc
     .inst_out(inst_out),//输出指令
-    //.inst_valid(inst_valid),
     .io_ifu_reqValid(io_ifu_reqValid)
-    //.state_wait(state_wait)
   );
   //译码
   ysyx_25080201_IDU IDU_init(
   .inst_ym(inst_out),//inst_out
-  //.pc(pc),
-  //.io_ifu_respValid(io_ifu_respValid),
-  //.clock(clock),
 
   .IDU_imm(imm),//
   .IDU_rd(rd),
@@ -199,13 +186,11 @@ module ysyx_25080201 (
     .wdata_ram(rs2_data),     // 要写入的数据 from gpr
     .is_sb_type(is_sb_type),  // 写掩码
     .is_sh_type(is_sh_type),
-    //.is_lh_type(is_lh_type),
-    //.pc(pc),
+
     .rdata_ram(rdata_ram),     // out读取内存内容
 
     .io_lsu_respValid(io_lsu_respValid),//MEM返回给 CPU (LSU)      告诉 CPU：“我已经把你要的数据准备好了，现在你可以用 rdata/结果了！”
     .io_lsu_reqValid(io_lsu_reqValid),//发给存储器（MEM）    告诉存储器：“我现在真的有一个读/写请求了，请你处理！”
-    //.io_ifu_respValid(io_ifu_respValid),
     .lsu_done(lsu_done), //访存完成标志
     .io_ifu_respValid(io_ifu_respValid),
 
@@ -233,7 +218,7 @@ module ysyx_25080201 (
   .reg_en(Reg_write),
   .Jal_en(Jal_en),
   .jalr_en(Jump_en),
-  //.is_load_type(is_load_type),
+
   .is_lbu_type(is_lbu_type),
   .is_lw_type(is_lw_type),
   .is_branch(is_branch),
@@ -245,10 +230,9 @@ module ysyx_25080201 (
   .mcycle(mcycle),
   .mvendorid(mvendorid),
   .marchid(marchid),
-  //.reg_load_wait(reg_load_wait),
-  //.state_wait(state_wait),
+
   .load_wait(load_wait),
-  //.lsu_done(lsu_done),//访存完成标志
+
   .alu_csr(alu_csr),  // csr读出数据
   .func(func),
 
@@ -296,30 +280,26 @@ module ysyx_25080201_IFU (
 
   output reg [31:0] io_ifu_addr,//->raddr temp from pc
   output reg [31:0] inst_out,//->IDU temp from rdata
-  //output reg inst_valid,//只是说明指令取出的那个周期
   output reg io_ifu_reqValid//IFU->MEM
-  //output state_wait
+
   //此处直接用了MEM输出的数据，没有传给IFU，因为clock会延迟一拍
   //地址同理，直接把PC输入给MEM
 );
-  // typedef enum reg [0:0] {IDLE=1'b0, WAIT=1'b1} state_t;
-  // state_t state;
+
   localparam IDLE = 1'b0;
   localparam WAIT = 1'b1;
 
   reg state;
-  // assign io_ifu_addr = pc;
+
   always @(*) begin
     io_ifu_addr = pc;
     inst_out = io_ifu_rdata;
   end
-  //assign inst_out = io_ifu_rdata;
-  //assign state_wait = (state == WAIT);
+
 
   always @(posedge clock) begin//
     if (reset) begin
       state <= IDLE;
-      //inst_valid <= 0;
       io_ifu_reqValid <= 0;
     end else begin
       case (state)
@@ -327,27 +307,23 @@ module ysyx_25080201_IFU (
             // idle_hold生效，进入WAIT  第一周期不译码
             io_ifu_reqValid <= 1;
             state <= WAIT;
-            //inst_valid <= 1;//第二周期译码
+
 
         end
         WAIT: begin
           io_ifu_reqValid <= 0;//防止连续请求
           if (io_ifu_respValid) begin
-              //inst_valid <= 1;
               if (!ls_vaild) begin//此时为第二周期 (load_wait || LSU_WAIT)防止延迟 but time logger
                 state <= IDLE;
-                //inst_valid <= 0;//next 第一周期不译码
             end else begin// 只有 lsu_done==1 才能转IDLE
                 state <= WAIT;
-                //inst_valid <= 1;//第三周期不译码
             end
           end else if(!io_ifu_respValid && (load_wait || LSU_WAIT)) begin// 只有 lsu_done==1 才能转IDLE
                 if (lsu_done) begin//防止延迟
                   state <= IDLE;
-                  //inst_valid <= 0;//next 第一周期不译码 
                 end
             end else begin
-              //inst_valid <= 1;//等待时有效
+              state <= WAIT;//继续等待
             end
 
         end
@@ -362,9 +338,6 @@ endmodule
 //译码
 module ysyx_25080201_IDU (
   input [31:0]inst_ym,
-  //input [31:0]pc,
-  //input io_ifu_respValid,//指令是否有效
-  //input clock,
 
   output reg [31:0]IDU_imm,
   output reg [3:0]IDU_rd,
@@ -507,12 +480,10 @@ module ysyx_25080201_IDU (
             if(IDU_func7 == 7'b0000000) begin // func7 add
               Reg_write = 1;
               add_alu   = 0;
-              //$display("add");
             end
             else if (IDU_func7 == 7'b0100000) begin// func7 sub
               Reg_write = 1;
               add_alu   = 0;
-              //$display("sub");
             end
           end
           else if(IDU_func == 3'b001)begin//sll
@@ -555,7 +526,6 @@ module ysyx_25080201_IDU (
           IDU_rd     = inst_ym[10:7];
           IDU_imm    = { inst_ym[31:12], 12'b0 }; // U-type立即数左移12位
           Reg_write  = 1;
-          //$display("lui");
         end
 
         // U-type: auipc
@@ -567,7 +537,6 @@ module ysyx_25080201_IDU (
           IDU_rd     = inst_ym[10:7];
           IDU_imm    = { inst_ym[31:12], 12'b0 }; // U-type立即数左移12位
           Reg_write  = 1;
-          //$display("auipc");
         end
 
         // B-type: beq(beqz),bne,bgeu  这里我没用区分bne和beq
@@ -581,7 +550,6 @@ module ysyx_25080201_IDU (
 
           add_alu   = 0;
           is_branch = 1;
-          //$display("beq");
         end
 
         // J-type: jal
@@ -594,7 +562,6 @@ module ysyx_25080201_IDU (
           IDU_imm    = { {12{inst_ym[31]}}, inst_ym[19:12], inst_ym[20] , inst_ym[30:21],1'b0}; // J-type offset
           Reg_write  = 1;
           Jal_en   = 1;
-          //$display("jal");
         end
 
         // S-type: sw, sb
@@ -609,17 +576,14 @@ module ysyx_25080201_IDU (
           if (inst_ym[14:12] == 3'b010) begin // sw
             ls_vaild = 1;
             w_ram    = 1;
-            //$display("sw");
           end else if (inst_ym[14:12] == 3'b000) begin // sb
             ls_vaild    = 1;
             w_ram       = 1;
             is_sb_type  = 1;
-            //$display("sb");
           end else if (inst_ym[14:12] == 3'b001) begin // sh
             ls_vaild    = 1;
             w_ram       = 1;
             is_sh_type  = 1;
-            //$display("sh");
           end
 
         end
@@ -647,7 +611,6 @@ module ysyx_25080201_IDU (
         
           else begin
           
-            //halt(pc,0);
             Reg_write  = 0;
             csr_write  = 0;
           end
@@ -677,15 +640,9 @@ module ysyx_25080201_IDU (
               is_lh_type   = 0;
               is_lhu_type  = 0;
               csr_write    = 0;
-          //halt(pc,1);
         end
       endcase
-    
-    //$display("opcode_alu = %07b,IDU_imm=%12b,func_alu=%03b,IDU_rs1=%08x,IDU_rs2=%08x,IDU_rd=%08x | pc = %08x,Reg_write=%d",IDU_opcode,IDU_imm,IDU_func,IDU_rs1,IDU_rs2,IDU_rd,pc,Reg_write);
-    // 特权指令halt
     end
-  //end
-
 endmodule
 
 //===============================  IDU  ===========================
@@ -882,8 +839,6 @@ module ysyx_25080201_LSU (
     //=============================原
     input is_sb_type,
     input is_sh_type,
-    //input is_lh_type,
-    //input [31:0]pc,
     input io_ifu_respValid,
 
     input reg io_lsu_respValid,//存储器响应有效（数据已准备好）
@@ -915,13 +870,9 @@ module ysyx_25080201_LSU (
     //assign rdata_ram = io_lsu_respValid ? io_lsu_rdata : 32'b0;
     // 组合逻辑计算访存地址和写使能
     assign io_lsu_addr  = wen_ram ? waddr_ram : raddr_ram;
-    //assign io_lsu_wen   = wen_ram;//
-    //assign io_lsu_wdata = data_ram;//
-    //assign io_lsu_wmask = wmask;//
     assign io_lsu_size  = is_sb_type ? 2'b00 : 
                          is_sh_type ? 2'b01 : 
                          2'b10;
-    //assign io_lsu_reqValid = valid;
   always @(*) begin
     io_lsu_wdata = data_ram;
     wmask = io_lsu_wen ? (
@@ -931,12 +882,6 @@ module ysyx_25080201_LSU (
                ) : 4'b0000;
     io_lsu_wmask = wmask;
   end
-// assign wmask = io_lsu_wen ? (
-//                   is_sb_type ? (4'b0001 << waddr_ram[1:0]) : 
-//                   is_sh_type ? (waddr_ram[1] ? 4'b1100 : 4'b0011) : 
-//                   4'b1111
-//                ) : 4'b0000;
-
     
     // 组合逻辑计算写入数据
     always @(*) begin
@@ -995,7 +940,6 @@ module ysyx_25080201_LSU (
         rdata_ram = 32'b0;
         lsu_done = 1'b0;
         load_wait = 1'b0;
-        // io_lsu_wen = 1'b0;
         io_lsu_wen = io_lsu_reqValid && wen_ram;//组合逻辑?
         case (state)
             IDLE: begin
@@ -1041,8 +985,6 @@ endmodule
 
 //写入寄存器，更新PC
 module ysyx_25080201_WBU (
-  // input clock,
-  // input reset,
   input [31:0]pc,
   input [31:0]alu_data,//从alu中读取数据
   input [1:0]alu_addr,//从alu中读取的地址 [31:0]alu_addr,
@@ -1051,7 +993,6 @@ module ysyx_25080201_WBU (
   input reg_en,
   input Jal_en,
   input jalr_en,
-  //input is_load_type,
   input is_lbu_type,
   input is_branch,
   input is_lh_type,
@@ -1062,10 +1003,7 @@ module ysyx_25080201_WBU (
   input [63:0] mcycle,           // cycle计数器
   input [31:0] mvendorid, // ysyx
   input [31:0] marchid,   // student_ID
-  //input reg_load_wait,
-  //input state_wait,
   input load_wait,
-  //input lsu_done,//访存完成标志
   input is_lw_type,
   input branch_taken,
   input [31:0]branch_target,
@@ -1076,20 +1014,12 @@ module ysyx_25080201_WBU (
   output [3:0]wb_rd,
   output [31:0]wb_Rresult,//写回到寄存器的数据来自ALU,RAM
   output reg [31:0]next_pc,
-  //output reg branch_taken,
-  //output reg [31:0]branch_target,
   output reg [63:0] wbu_mcycle // cycle计数器
   //注意去掉逗号！！！！！！！！！！！！！！
 );
   wire [7:0] lbu_byte;
   wire [15:0] lh_byte;
   reg [31:0] wb_Rresult_reg;
-  //reg wen_load ;
-  //reg [3:0] rd_load;
-  //reg [31:0] Result_load;
-  //reg [31:0] addr_load;
-  //reg lbu_wait;
-  //reg lw_wait;//is_load_type的延迟信号
 
   //选择器
   assign lbu_byte =
@@ -1146,7 +1076,6 @@ module ysyx_25080201_WBU (
       endcase
     else 
       wb_Rresult_reg = alu_data;//add sub addi
-      //$display("wb_Rresult_reg = %08x",wb_Rresult_reg);
 
     if(is_branch && branch_taken)begin
       next_pc = branch_target;
@@ -1200,18 +1129,5 @@ module ysyx_25080201_RegisterFile(
 
   assign rs1_data = (rs1 == 0) ? 32'b0 : rf[rs1];
   assign rs2_data = (rs2 == 0) ? 32'b0 : rf[rs2];//如果 rs2 没有用到或者等于 0 号寄存器，输出就是 0
-`ifdef VERILATOR
-  always @(*) begin
-    if(io_ifu_rdata == 32'h00100073 && rf[10] == 32'b0)begin
-      halt(pc,0);
-    end   
-    else if(io_ifu_rdata == 32'h00100073 && rf[10] == 32'b1)begin
-      //$display("a0=0x%08x",rf[10]);
-      halt(pc,1);
-    end
-  end
-`endif
 
 endmodule
-
-
