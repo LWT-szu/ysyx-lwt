@@ -159,6 +159,7 @@ static int decode_exec(Decode *s) {
 
 int isa_exec_once(Decode *s) {
   s->isa.inst = inst_fetch(&s->snpc, 4);//s->snpc每次加4
+  //printf("NEMU: pc = " FMT_WORD ", inst = 0x%08x\n", s->pc, s->isa.inst);
   #ifdef CONFIG_FTRACE
   uint32_t inst = s->isa.inst;
   if((inst & 0x7F) == 0x6F){

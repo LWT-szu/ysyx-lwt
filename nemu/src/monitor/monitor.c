@@ -74,6 +74,7 @@ static long load_img() {
   return size;
 }
 //定义支持的命令行参数格式
+//这里就是nemu你想要自己传参数的时候参考的地方，之前用的--log和--diff
 static int parse_args(int argc, char *argv[]) {
   const struct option table[] = {
     {"batch"    , no_argument      , NULL, 'b'},
@@ -113,7 +114,6 @@ static int parse_args(int argc, char *argv[]) {
 // 初始化仿真器
 void init_monitor(int argc, char *argv[]) {
   /* Perform some global initialization.初始化工作 */
-
   /* Parse arguments. */
   parse_args(argc, argv);//解析命令行参数,处理传入的参数
   #ifdef CONFIG_FTRACE

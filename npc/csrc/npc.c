@@ -12,6 +12,11 @@ extern Vtop *top;
 extern uint32_t pmem[];
 
 NPCState npc_state = { .state = NPC_RUNNING};
+npc_CPU_state ref_state;
+
+const char *ref_reg[16] = {
+    "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
+    "s0", "s1", "a0", "a1", "a2", "a3", "a4", "a5"};
 
 static size_t(*cs_disasm_dl)(csh handl,const uint8_t *code,
     size_t code_size, uint32_t address, size_t count,cs_insn **insn);
@@ -89,7 +94,7 @@ char* npc_readline(const char *prompt){
 // 获取当前NPC寄存器状态
 void reg_curr_state(npc_CPU_state *dst){
     assert(dst != NULL);
-    for(int i = 0;i<32;i++){//???????????
+    for(int i = 0;i<16;i++){//???????????
         dst->gpr[i] = top->rf[i];
     }
     dst->pc = top->pc;
@@ -110,61 +115,85 @@ void init_difftest(long img_size,int port){
     assert(handle);
 
     // --------- 下面是获取各个 DiffTest 接口的函数指针 ---------
-    // 用于在 REF 和 DUT 之间同步内存内容
+    // 用于在 REF(nemu) 和 DUT(npc) 之间同步内存内容
     ref_difftest_memcpy = reinterpret_cast < void (*)(paddr_t, void *, size_t, bool)> (dlsym(handle, "difftest_memcpy"));
     assert(ref_difftest_memcpy);
 
-    // 用于在 REF 和 DUT 之间同步寄存器内容
+    // 用于在 REF(nemu) 和 DUT(npc) 之间同步寄存器内容
     ref_difftest_regcpy = reinterpret_cast<void (*)(void *, bool)>(dlsym(handle, "difftest_regcpy"));
     assert(ref_difftest_regcpy);
 
     // ref_difftest_exec：指向参考模型的单步执行函数
-    // 让 REF 执行指定条数的指令
+    // 让 REF(nemu) 执行指定条数的指令
     ref_difftest_exec = reinterpret_cast<void (*)(uint64_t)>(dlsym(handle, "difftest_exec"));
     assert(ref_difftest_exec);
 
+    // 中断函数指针
     ref_difftest_raise_intr = reinterpret_cast<void (*)(uint64_t)>(dlsym(handle, "difftest_raise_intr"));
     assert(ref_difftest_raise_intr);
 
+    // 获取初始化参考模型的函数指针
     void (*ref_difftest_init)(int) = reinterpret_cast<void (*)(int)>(dlsym(handle, "difftest_init"));
     assert(ref_difftest_init);
 
     // 初始化 REF
     ref_difftest_init(port);
+
+    // -------------------------------------同步初始状态---------------------------------------
+    // 内存同步：把 DUT(npc) 的内存内容同步到 REF(nemu)
     ref_difftest_memcpy(PMEM_BASE, (uint8_t *)pmem, img_size, 1); // 1: DIFFTEST_TO_REF
 
-    // 寄存器同步：把 DUT 的寄存器同步到 REF
+    // 寄存器同步：把 DUT(npc) 的寄存器同步到 REF(nemu)
     npc_CPU_state cpu_snap;
     reg_curr_state(&cpu_snap);
     ref_difftest_regcpy(&cpu_snap,1);
+    //printf("init_cpu cpu.pc = 0x%08x\n", cpu_snap.pc);
 }
 // 跳过某些不需要对比的指令
 // 例如：访问串口、时钟等外设的指令
-static inline bool is_skip_difftest_inst(uint32_t addr){
-    return addr == SERIAL_PORT || addr == RTC_ADDR || addr < RTC_ADDR_END;
-}
+
 void difftest_step(){
     npc_CPU_state dut_state;
     reg_curr_state(&dut_state);
+    //printf("init_DUT: dut.pc = 0x%08x\n", dut_state.pc);
+    //printf("NPC: sizeof(npc_CPU_state) = %ld\n", sizeof(npc_CPU_state));
 
-    if(is_skip_difftest_inst(dut_state.pc)){
+    // if(is_skip_ref){
+    //     printf("Difftest: skip diff test at pc=0x%08x\n", dut_state.pc);
+    //     ref_difftest_regcpy(&dut_state, 1); // 1: DIFFTEST_TO_REF
+    //     is_skip_ref = false;
+    //     return;
+    // }
+
+    // if (is_skip_ref)
+    // {
+    //     // to skip the checking of an instruction, just copy the reg state to reference design
+    //     ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);
+    //     is_skip_ref = false;
+    //     return;
+    // }
+    // 1. 让 REF 执行一条指令
+    // ref_difftest_exec(1);
+
+    // 2. 从 REF 拿回寄存器
+    // npc_CPU_state ref_state;
+    ref_difftest_regcpy(&ref_state, 0); // 0: DIFFTEST_TO_DUT
+    ref_difftest_exec(1);               // 使用nemu执行指令前的状态去更新比较，之前一直都是用执行后的去比较，就导致nemu立即写回reg
+
+    // 3. 取 DUT 自己当前寄存器
+
+    if (top->alu_ram == 0xA00003f8 || top->alu_ram == 0xA0000048 || top->alu_ram == 0xA000004c)
+    { // 串口地址
+        //printf("Difftest: skip diff test for peripheral access at pc=0x%08x\n", dut_state.pc);
+        dut_state.pc += 4; // 跳过该指令，假设是4字节指令
         ref_difftest_regcpy(&dut_state, 1); // 1: DIFFTEST_TO_REF
         return;
     }
-    // 1. 让 REF 执行一条指令
-    ref_difftest_exec(1);
-
-    // 2. 从 REF 拿回寄存器
-    npc_CPU_state ref_state;
-    ref_difftest_regcpy(&ref_state, 0); // 0: DIFFTEST_TO_DUT
-
-    // 3. 取 DUT 自己当前寄存器
-    
-
     // 4. 比较：所有寄存器和PC
-    for(int i = 0;i<32;i++){
+    for(int i = 0;i<16;i++){
         if(dut_state.gpr[i] != ref_state.gpr[i]){
-            printf("Difftest Fail: reg[%d] NPC=0x%08x REF=0x%08x\n",i,dut_state.gpr[i],ref_state.gpr[i]);
+            printf("Difftest Fail: %s NPC=0x%08x REF=0x%08x pc=0x%08x\n", ref_reg[i], dut_state.gpr[i], ref_state.gpr[i], dut_state.pc);
+            //printf("NPC : inst=0x%08x pc = 0x%08x\n", top->inst_out, top->pc);
             npc_set_state(NPC_ABORT,dut_state.pc,1);
             return;
         }

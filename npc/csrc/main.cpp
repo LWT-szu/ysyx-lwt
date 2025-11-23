@@ -1,3 +1,9 @@
+//itrace 日志功能：记录每条指令的地址、指令机器码、反汇编结果，访存操作的地址和数据
+//单步执行功能：支持用户通过命令行界面单步执行指令
+//info r命令：打印当前寄存器状态
+//扫描内存命令x N addr：打印从addr开始的N个字的内存内容
+//连续执行命令c：让程序继续运行直到结束或遇到断点
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -23,20 +29,32 @@ char str[128];
     nvboard_bind_all_pins(Vtop *top);
 #endif
 
-const char *reg[32] = {
+const char *reg[16] = {
     "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
-    "s0", "s1", "a0", "a1", "a2", "a3", "a4", "a5",
-    "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7",
-    "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"};
+    "s0", "s1", "a0", "a1", "a2", "a3", "a4", "a5"};
 
 void cpu_exec(int n,int print_inst){
-    int count =0;
+    int count =0;//记录执行了多少条指令
     
     while (!contextp->gotFinish() && (n == -1 || count < n) ) {
         // 上升沿
-        top->clk = 0;top->eval();contextp->timeInc(1);
+        top->clk = 1;top->eval();contextp->timeInc(1);
+
+        memset(str, 0, sizeof(str)); // 清空字符缓冲区
+        npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
+        __uint128_t asm_val1 = 0;
+        for (int i = 0; i < 16; ++i)
+        {
+            asm_val1 |= (__uint128_t)((uint8_t)str[i]) << (8 * (15 - i));
+        }
+        // 拆分为 4 个 32 位，赋值给 VlWide<4>
+        for (int i = 0; i < 4; ++i)
+        {
+            top->asm_out1[i] = (uint32_t)((asm_val1 >> (32 * i)) & 0xFFFFFFFF);
+        }
+        // 为什么 m_trace->dump(contextp->time()); 放到 asm_out 更新之后，波形里 asm_out 不是当前指令的内容？
 #ifdef WAVE
-        m_trace->dump(contextp->time()); // 当前仿真时间下所有信号的值
+        m_trace->dump(contextp->time()); // 记录当前仿真时间下所有信号的值
 #endif
         //printf("[DEBUG] while pc = 0x%08x\n",top->pc);
 /* ==================== NPC_State ==================== */
@@ -46,7 +64,6 @@ void cpu_exec(int n,int print_inst){
                 npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
                 fprintf(itrace_fp, "0x%08x:      %08x      %s\n", top->pc, top->inst_out, str);
                 #endif
-
                 printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
 
             }else if(npc_state.halt_ret == 0){
@@ -70,9 +87,10 @@ void cpu_exec(int n,int print_inst){
         }
 /* ==================== NPC_State ==================== */
 
+
 /* ==================== NPC_ITRAC ==================== */
 #ifdef LOG
-        // 实现命令c的日志加载rdata_ram
+                                  // 实现命令c的日志加载rdata_ram
         if(n==-1 && itrace_fp){
             npc_disassemble(str, sizeof(str), top->pc, top->inst_out);
             fprintf(itrace_fp,"0x%08x:      %08x      %s",top->pc,top->inst_out,str);
@@ -88,7 +106,7 @@ void cpu_exec(int n,int print_inst){
                 fprintf(itrace_fp, "        [addr:%08x] [write_ram:%08x]\n", top->alu_ram, top->rs2_data);
             }
             /* ==================== 记录访存操作的地址和数据 ==================== */
-            fflush(itrace_fp);
+            fflush(itrace_fp);// 刷新缓冲区，确保日志及时写入文件
         }
 #endif
         // 只在单步/si时打印
@@ -124,7 +142,7 @@ void cpu_exec(int n,int print_inst){
         //top->eval();
         //printf("new version!\n");
         // 下降沿
-        top->clk = 1;top->eval();contextp->timeInc(1); // 再推进到 t+2
+        top->clk = 0;top->eval();contextp->timeInc(1); // 再推进到 t+2
     #ifdef WAVE
         m_trace->dump(contextp->time());
     #endif
@@ -139,13 +157,11 @@ void cpu_exec(int n,int print_inst){
 
 
 int main(int argc, char** argv) {
-    if (argc < 2)
-    {
-        printf("Usage: %s mem.hex\n", argv[0]);
-        return 1;
-    }
-
-
+    // if (argc < 2)
+    // {
+    //     printf("Usage: %s mem.hex\n", argv[0]);
+    //     return 1;
+    // }
     contextp = new VerilatedContext; // VerilatedContext *contextp
 #ifdef WAVE
     contextp->traceEverOn(true);
@@ -200,7 +216,7 @@ int main(int argc, char** argv) {
 
 #ifdef AUTO_RUN
     cpu_exec(-1, 0);
-#elif
+#else
     while(1){
         // 程序等待用户输入指令
         //char cmd[32];
@@ -215,7 +231,7 @@ int main(int argc, char** argv) {
         // 打印寄存器info r
         else if(strncmp(cmd,"info r",6) == 0){
             int i =0;
-            for(i;i<32;i++){
+            for(i;i<16;i++){
                 printf("%3s = 0x%08x\t",reg[i],top->rf[i]);
                 if ((i+1)%4==0) puts("");
             }
@@ -273,6 +289,10 @@ int main(int argc, char** argv) {
            top->pc, top->sp, top->gp, top->tp, top->s0, top->a0, top->a1);
     printf("count=%d,inst_out=%08x,alu_ram=0x%08x\n", count,top->inst_out, top->alu_ram);
     printf("\n");
+
+    ./build/riscv32-nemu-interpreter ../am-kernels/tests/cpu-tests/build/dummy-riscv32e-npc.bin
+    ./build/riscv32-nemu-interpreter ../am-kernels/tests/cpu-tests/build/dummy-riscv32e-npc.bin --diff=/build/riscv32-nemu-interpreter-so
+
 }
     count++;
 */

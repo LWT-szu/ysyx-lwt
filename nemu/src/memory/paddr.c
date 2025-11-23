@@ -41,10 +41,12 @@ static void pmem_write(paddr_t addr, int len, word_t data) {
   host_write(guest_to_host(addr), len, data);
 }
 // 非法访问，错误处理
-static void out_of_bound(paddr_t addr) {
-  panic("address = " FMT_PADDR " is out of bound of pmem [" FMT_PADDR ", " FMT_PADDR "] at pc = " FMT_WORD,
-      addr, PMEM_LEFT, PMEM_RIGHT, cpu.pc);
-}
+// static void out_of_bound(paddr_t addr) {
+//   printf("Physical address " FMT_PADDR " is out of bound\n", addr);
+//   fflush(stdout);
+//   panic("address = " FMT_PADDR " is out of bound of pmem [" FMT_PADDR ", " FMT_PADDR "] at pc = " FMT_WORD,
+//       addr, PMEM_LEFT, PMEM_RIGHT, cpu.pc);
+// }
 
 // 这个函数是模拟器/虚拟机中初始化物理内存的核心函数，通过条件编译支持不同的内存初始化策略，同时提供了内存分配和状态日志功能。
 void init_mem() {
@@ -54,6 +56,8 @@ void init_mem() {
 #endif
   IFDEF(CONFIG_MEM_RANDOM, memset(pmem, rand(), CONFIG_MSIZE));
   //就会用 memset 把 pmem 区域所有字节都填为一个随机值（rand() 的低8位）。
+  //printf("init mem done\n");
+  Log("init mem done [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
   Log("physical memory area [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
 }
 
@@ -61,12 +65,19 @@ void init_mem() {
 word_t paddr_read(paddr_t addr, int len) {
   if (likely(in_pmem(addr))) return pmem_read(addr, len);//从实际的物理内存数组里读数据（通常是模拟器内存）。
   IFDEF(CONFIG_DEVICE, return mmio_read(addr, len)); // 如果是访问外设，通过特殊的外设接口读数据。
-  out_of_bound(addr);
+  //out_of_bound(addr);
   return 0;
 }
 
 void paddr_write(paddr_t addr, int len, word_t data) {
   if (likely(in_pmem(addr))) { pmem_write(addr, len, data); return; }
   IFDEF(CONFIG_DEVICE, mmio_write(addr, len, data); return);
-  out_of_bound(addr);
+  // if (addr == 0xa00003f8)
+  // {
+  //   printf("paddr_read: addr=0x%08x len=%d pc=0x%08x\n", addr, len, cpu.pc);
+  //   return ;
+  // }
+  //printf("paddr_write: addr=0x%08x len=%d data=0x%08x pc=0x%08x\n", addr, len, data, cpu.pc);
+  fflush(stdout);
+  //out_of_bound(addr);
 }

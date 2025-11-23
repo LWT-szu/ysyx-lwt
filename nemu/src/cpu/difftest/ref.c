@@ -34,6 +34,7 @@ __EXPORT void difftest_memcpy(paddr_t addr, void *buf, size_t n, bool direction)
 // NEMU作为REF时使用
 __EXPORT void difftest_regcpy(void *dut, bool direction) {
   //printf("dut=%p, direction=%d\n", dut, direction);
+  //printf("NEMU: sizeof(cpu) = %ld\n", sizeof(cpu));
   if(direction == DIFFTEST_TO_DUT){
     memcpy(dut, &cpu, sizeof(cpu)); //???????
   }

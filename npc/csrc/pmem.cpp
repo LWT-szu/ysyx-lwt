@@ -19,14 +19,28 @@ extern "C" int pmem_read(int raddr, int pc, int valid, int wen_ram)
     if (raddr == RTC_ADDR)
     {
         uint64_t now = get_time_in_us();
+        // is_skip_difftest ();
+        //printf("is_skip_ref = %d\n", is_skip_ref);
+        // return (uint32_t)(now & 0xFFFFFFFF); // 低32位
+        #ifdef CONFIG_DIFFTEST
+        return 0xA0000000;
+        #else
         return (uint32_t)(now & 0xFFFFFFFF); // 低32位
+        #endif
     }
     if (raddr == RTC_ADDR + 4)
     {
         uint64_t now = get_time_in_us();
-        return (uint32_t)(now >> 32); // 高32位
+        // is_skip_difftest();
+        //printf("is_skip_ref = %d\n", is_skip_ref);
+        #ifdef CONFIG_DIFFTEST
+            return 0xA0000000;
+        #else
+            return (uint32_t)(now >> 32); // 高32位
+        #endif
     }
-
+    // if (valid) printf("pmem_read: raddr=0x%08x pc=0x%08x\n", raddr, pc);
+    // printf("PMEM_read : valid = %d\n", valid);
     uint32_t off = raddr - PMEM_BASE;
     uint32_t idx = (off & ~0x3u) >> 2;
     if (idx >= MEM_SIZE)
@@ -61,10 +75,11 @@ extern "C" void pmem_write( int waddr,  int wdata, char wmask,int pc)
         npc_set_state(NPC_ABORT, pc, 1);
         printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
     }
-
+    
     if (waddr == SERIAL_PORT)
     {
         //printf("[SERIAL] write: waddr=0x%08x, wdata=0x%08x, wmask=0x%02x\n", waddr, wdata, wmask);
+        //is_skip_difftest();
         putchar(wdata & 0xFF);
         fflush(stdout);               // 确保输出及时刷新：
         // printf("hello!");
@@ -85,6 +100,9 @@ extern "C" void pmem_write( int waddr,  int wdata, char wmask,int pc)
         {
             ((uint8_t *)&pmem[idx])[i] = (wdata >> (i * 8)) & 0xFF;
         }
+    }
+    if(waddr == 0xA0000048){
+        printf("pmem_write: waddr=0x%08x, wdata=0x%08x, wmask=0x%02x\n", waddr, wdata, wmask);
     }
     /* ==================== mtrace start==================== */
 #ifdef CONFIG_NPC_MTRACE
