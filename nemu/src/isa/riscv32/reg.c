@@ -28,7 +28,7 @@ void isa_reg_display(char *args) {
   printf("pc = 0x%08x \n", cpu.pc);
   for(i=0;i<32;i++)
   {
-    printf("%s = 0x%08x\n", regs[i], (uint32_t)gpr(i)); // 打印8位十六进制
+    printf("%s = 0x%08x\n", reg_name(i), (uint32_t)gpr(i)); // 打印8位十六进制
   }
   
 }

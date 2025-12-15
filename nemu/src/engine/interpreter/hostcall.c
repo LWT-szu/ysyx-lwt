@@ -20,6 +20,7 @@
 #include <isa.h>
 #include <cpu/difftest.h>
 
+//被定义成一个宏了 在nemu/include/cpu/cpu.h
 void set_nemu_state(int state, vaddr_t pc, int halt_ret) {
   // 通知参考模型跳过本次指令（通常用于差分测试，防止参考和DUT步调混乱）
   difftest_skip_ref();
@@ -30,6 +31,7 @@ void set_nemu_state(int state, vaddr_t pc, int halt_ret) {
 }
 
 __attribute__((noinline))
+//被定义成一个宏了 在nemu/include/cpu/cpu.h
 void invalid_inst(vaddr_t thispc) {
   uint32_t temp[2];
   vaddr_t pc = thispc; // 当前触发异常的指令的PC值（程序计数器，指明是哪条指令出错了）

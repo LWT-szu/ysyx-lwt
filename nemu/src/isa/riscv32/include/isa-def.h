@@ -17,10 +17,14 @@
 #define __ISA_RISCV_H__
 
 #include <common.h>
+typedef struct{
+  word_t mtvec, mepc, mstatus, mcause;
+} RISCV_CSR_STATE;
 
 typedef struct {
   word_t gpr[MUXDEF(CONFIG_RVE, 16, 32)];
   vaddr_t pc;                                                // 程序计数器
+  RISCV_CSR_STATE csr;                                   // CSR寄存器状态
 } MUXDEF(CONFIG_RV64, riscv64_CPU_state, riscv32_CPU_state); // 根据宏是否定义来选择架构,判断用 16 还是 32
 
 // decode

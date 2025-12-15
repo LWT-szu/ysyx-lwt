@@ -1,6 +1,7 @@
 #include <am.h>
 #include <nemu.h>
 #include <klib.h>
+// 虚存扩展, 为程序提供虚存管理的能力
 
 static AddrSpace kas = {};
 static void* (*pgalloc_usr)(int) = NULL;

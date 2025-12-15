@@ -17,7 +17,7 @@
 #include <memory/paddr.h>
 #include <device/mmio.h>
 #include <isa.h>
-// pmem是一个全局静态数组，大小为 CONFIG_MSIZE（RAM总容
+// pmem是一个全局静态数组，大小为 CONFIG_MSIZE 128MB物理内存
 #if   defined(CONFIG_PMEM_MALLOC)
 static uint8_t *pmem = NULL;
 #else // CONFIG_PMEM_GARRAY
@@ -40,8 +40,10 @@ static word_t pmem_read(paddr_t addr, int len) {
 static void pmem_write(paddr_t addr, int len, word_t data) {
   host_write(guest_to_host(addr), len, data);
 }
-// 非法访问，错误处理
+// 非法访问，错误处理 用difftest记得把他注释了
 static void out_of_bound(paddr_t addr) {
+  printf("Physical address " FMT_PADDR " is out of bound\n", addr);
+  fflush(stdout);
   panic("address = " FMT_PADDR " is out of bound of pmem [" FMT_PADDR ", " FMT_PADDR "] at pc = " FMT_WORD,
       addr, PMEM_LEFT, PMEM_RIGHT, cpu.pc);
 }
@@ -54,6 +56,8 @@ void init_mem() {
 #endif
   IFDEF(CONFIG_MEM_RANDOM, memset(pmem, rand(), CONFIG_MSIZE));
   //就会用 memset 把 pmem 区域所有字节都填为一个随机值（rand() 的低8位）。
+  //printf("init mem done\n");
+  Log("init mem done [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
   Log("physical memory area [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
 }
 
@@ -68,5 +72,12 @@ word_t paddr_read(paddr_t addr, int len) {
 void paddr_write(paddr_t addr, int len, word_t data) {
   if (likely(in_pmem(addr))) { pmem_write(addr, len, data); return; }
   IFDEF(CONFIG_DEVICE, mmio_write(addr, len, data); return);
+  // if (addr == 0xa00003f8)
+  // {
+  //   printf("paddr_read: addr=0x%08x len=%d pc=0x%08x\n", addr, len, cpu.pc);
+  //   return ;
+  // }
+  //printf("paddr_write: addr=0x%08x len=%d data=0x%08x pc=0x%08x\n", addr, len, data, cpu.pc);
+  fflush(stdout);
   out_of_bound(addr);
 }

@@ -6,10 +6,22 @@
 #else
 #define NR_REGS 32
 #endif
-
+#include <stdint.h>
+/*就是你 C 语言中记录trap现场的一个“快照”。
+  必须保证 顺序/布局/意义 与 trap.s 里 STORE t0, OFFSET_CAUSE(sp) 等保存位置一致。
+  比如你的 struct Context 现在写的是：mepc, mcause, gpr[], mstatus
+  那么 trap.s 也必须第一项保存 mepc，然后是 mcause，然后按顺序是寄存器，
+  然后是 mstatus，才能用 memcpy/sp指针互通。
+  uintptr_t “存储指针/地址的数值” */
 struct Context {
+  uintptr_t gpr[NR_REGS];
+  uintptr_t mcause;
+  uintptr_t mstatus;
+  uintptr_t mepc;
+  
   // TODO: fix the order of these members to match trap.S
-  uintptr_t mepc, mcause, gpr[NR_REGS], mstatus;
+  // 让Context结构体和trap.S保存/恢复顺序完全一致
+  //uintptr_t mepc, mcause, gpr[NR_REGS], mstatus;
   void *pdir;
 };
 

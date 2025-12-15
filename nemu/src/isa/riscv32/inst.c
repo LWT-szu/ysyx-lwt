@@ -27,7 +27,8 @@
 #define R(i) gpr(i)
 #define Mr vaddr_read
 #define Mw vaddr_write
-
+extern word_t isa_raise_intr(word_t NO, vaddr_t epc);
+extern word_t isa_reg_str2val(const char *s, bool *success);
 enum
 {
   TYPE_I,
@@ -39,7 +40,16 @@ enum
   TYPE_r, // none
   TYPE_B,
 };
-
+word_t *csr(word_t addr)
+{
+  switch(addr){
+    case 0x300: return &(cpu.csr.mstatus);
+    case 0x305: return &(cpu.csr.mtvec);
+    case 0x341: return &(cpu.csr.mepc);
+    case 0x342: return &(cpu.csr.mcause);
+    default: panic("unsupported csr addr = 0x%x", addr);
+  }
+}
 // 从寄存器堆（R数组）中读取指定寄存器的值，并记录到解码阶段的操作数变量中,供指令执行时使用
 #define src1R() do { *src1 = R(rs1); } while (0)
 #define src2R() do { *src2 = R(rs2); } while (0)
@@ -51,6 +61,8 @@ enum
 #define immJ() do { *imm =  SEXT((BITS(i,31 , 31) << 20| BITS(i, 19, 12) << 12 | BITS(i, 20, 20) << 11 | BITS(i,30,21) << 1),21);} while(0)
 #define immB() do { *imm = SEXT( ( BITS(i, 31, 31)<< 12| BITS(i, 7, 7) << 11 | BITS(i,30,25)  << 5  | BITS(i, 11, 8) << 1 ) , 13) ; } while(0)
 #define shamtI() do { *imm = BITS(i, 25, 20); } while(0)
+#define CSR(imm) *csr(imm)
+#define ECALL(dnpc) { bool success; dnpc = (isa_raise_intr(isa_reg_str2val("a7", &success), s->pc)); }//32E -> a5
 
 // 指令类型解析出寄存器和立即数
 static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_t *imm, int type) {
@@ -107,6 +119,9 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? 101 ????? 00000 11", lhu    , I, R(rd) = Mr(src1 + imm, 2) & 0xFFFF);//无符号扩展16位
   INSTPAT("??????? ????? ????? 110 ????? 00100 11", ori    , I, R(rd) = src1 | imm);
 
+  INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I,  R(rd) = CSR(imm) ; CSR(imm) = CSR(imm) | src1 ); // 读写 CSR 寄存器
+  INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I,  R(rd) = CSR(imm) ; CSR(imm) = src1);            // 读写 CSR 寄存器
+
   INSTPAT("??????? ????? ????? 000 ????? 11000 11", beq    , B, if(src1 == src2) s->dnpc = s->pc + imm); // beq条件判断跳转
   INSTPAT("??????? ????? ????? 001 ????? 11000 11", bne    , B, if (src1 != src2) s->dnpc = s->pc + imm); // bne
   INSTPAT("??????? ????? ????? 111 ????? 11000 11", bgeu   , B, if ((uint32_t)src1 >= (uint32_t)src2) s->dnpc = s->pc + imm);//无符号比较
@@ -147,7 +162,9 @@ static int decode_exec(Decode *s) {
 
 
   //add more instruction in here(maybe)
-
+  //ecall,csrrw,csrrs,mret
+  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , r, { cpu.csr.mstatus = (cpu.csr.mstatus & ~0x8) | ((cpu.csr.mstatus & 0x80) >> 4); s->dnpc = cpu.csr.mepc; });//将 mstatus 的 MIE 位设置为 MPIE 的值，然后将 MPIE 清零，最后跳转到 mepc 指定的地址继续执行程序
+  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, ECALL(s->dnpc));
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
   INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv    , N, INV(s->pc));//inv前面所有的模式匹配规则都无法成功匹配, 则将该指令视为非法指令
   INSTPAT_END();
@@ -159,6 +176,7 @@ static int decode_exec(Decode *s) {
 
 int isa_exec_once(Decode *s) {
   s->isa.inst = inst_fetch(&s->snpc, 4);//s->snpc每次加4
+  //printf("NEMU: pc = " FMT_WORD ", inst = 0x%08x\n", s->pc, s->isa.inst);
   #ifdef CONFIG_FTRACE
   uint32_t inst = s->isa.inst;
   if((inst & 0x7F) == 0x6F){

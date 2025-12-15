@@ -28,6 +28,8 @@ BIN = $(BUILD_DIR)/$(TOPNAME)
 # Verilator配置
 VERILATOR = verilator
 VERILATOR_CFLAGS += -MMD --build --trace -cc -O3 --x-assign fast --x-initial fast --noassert
+# 修正的警告配置 - 使用正确的选项名称
+
 
 # 文件路径
 VSRCS = $(shell find $(abspath ./vsrc) -name "*.v") $(abspath ./vsrc/IDU.sv)
@@ -85,6 +87,12 @@ sim: $(BIN)
 
 # 其他目标
 all: $(BIN)
+
+lint:
+	verilator --lint-only -Wall -I/home/lwt/ysyx-workbench/npc/vsrc /home/lwt/ysyx-workbench/npc/vsrc/*.v
+
+# 修正锁存器检查目标
+
 
 run: $(BIN)
 #	./$(BIN) sum.hex +trace

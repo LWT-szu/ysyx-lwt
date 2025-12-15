@@ -38,6 +38,8 @@ module EXU (
           alu_result = rs1_alu & in2_alu; //andi
         else if(func_alu == 3'b100)
           alu_result = rs1_alu ^ imm_alu;//xori
+        else if(func_alu == 3'b110)
+          alu_result = rs1_alu | imm_alu;//ori
         else if(func_alu == 3'b101 && func7_alu == 7'b0000000)
           alu_result = rs1_alu >> imm_alu[4:0];//srli
         else if(func_alu == 3'b001 && func7_alu == 7'b0000000)
@@ -53,11 +55,7 @@ module EXU (
             alu_result = rs1_alu - in2_alu;// sub
           //$display("alu_result(%08x) = rs1_alu(%08x) + in2_alu(%08x) | pc = %08x",alu_result,rs1_alu,in2_alu,pc);
         end
-        3'b001:begin
-          if(func7_alu == 7'b0000000)
-            alu_result = rs1_alu << in2_alu[4:0];//sll
-            //$display("opcode_alu = %07b,func_alu=%03b,alu_result=%08x,rs1_alu=%08x,in2_alu[4:0]=%05b| pc = %08x\n",opcode_alu,func_alu,alu_result,rs1_alu,in2_alu[4:0],pc);
-        end
+        3'b001: alu_result = rs1_alu << in2_alu[4:0];//sll if(func7_alu == 7'b0000000)
         3'b111: alu_result = rs1_alu & in2_alu;//and
         3'b011: alu_result = ( $unsigned(rs1_alu) < $unsigned(in2_alu)) ? 1 : 0;//sltu
         3'b110: alu_result = rs1_alu | in2_alu ;//or
@@ -82,8 +80,8 @@ module EXU (
         alu_result = rs1_alu + in2_alu;
       end
 
-      7'b0000011: begin // load（如 lw,lbu,lh）
-        if(func_alu == 3'b010 || func_alu == 3'b100 || func_alu == 3'b001 || func_alu == 3'b101 )begin
+      7'b0000011: begin // load（如 lw,lbu,lh,lb）
+        if(func_alu == 3'b000 || func_alu == 3'b010 || func_alu == 3'b100 || func_alu == 3'b001 || func_alu == 3'b101)begin
           alu_ram = rs1_alu + in2_alu;
         end
       end
@@ -121,21 +119,5 @@ module EXU (
     endcase
     end
 endmodule
-/*
-  if((func_alu == 3'b000 && (opcode_alu == 7'b0010011 | opcode_alu == 7'b1100111) ) ||(func_alu == 3'b000 && opcode_alu == 7'0000011))begin//addi,jalr
-    alu_result = in2_alu + rs1_alu;
-  end 
 
-  else if (func_alu == 3'b000 && opcode_alu == 7'b0110011) begin//add
-    alu_result = in2_alu + rs1_alu;
-  end
-
-  else if (opcode_alu == 7'b0110111)  begin//lui
-    alu_result = in2_alu;
-  end
-
-  else begin
-    alu_result = 32'b0;
-  end
-  */
 

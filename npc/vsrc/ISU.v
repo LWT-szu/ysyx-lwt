@@ -10,7 +10,7 @@ module ISU (
     input [31:0]wdata_ram,        //  要写入的数据gpr
     input is_sb_type,
     input is_sh_type,
-    input is_lh_type,
+    //input is_lh_type,
     input [31:0]pc,
     output reg [31:0]rdata_ram
 
@@ -27,12 +27,16 @@ module ISU (
         if(valid && !wen_ram)begin
             //$display("---------ISU------------");
             rdata_ram = pmem_read(raddr_ram,pc,{31'b0, valid},{31'b0, wen_ram});// 有读请求时
+            //$display("LDS : valid=0x%d",valid);
             //$display("---------ISU------------");
         end
         else begin
             rdata_ram = 0;
         end
-
+        // if(raddr_ram == 32'hA0000048 || waddr_ram == 32'hA0000048)begin
+        //     $display("ISU: raddr_ram=0x%08x, rdata_ram=0x%08x", raddr_ram, rdata_ram);
+        //     $display("ISU: waddr_ram=0x%08x, wdata_ram=0x%08x", waddr_ram, wdata_ram);
+        // end
         if(is_sb_type)begin//sb
             
             case (waddr_ram[1:0])

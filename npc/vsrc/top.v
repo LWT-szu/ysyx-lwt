@@ -6,8 +6,10 @@ module top (
   output w_ram,
   output is_load_type,
   output [31:0]pc,
-  
-  output [31:0] rf[31:0],
+  output [31:0]next_pc,
+  output [127:0]asm_out1,
+
+  output [31:0] rf[15:0],
   output [31:0] rs2_data,
   output [31:0] rdata_ram,
   output [31:0] wdata_ram,
@@ -38,19 +40,19 @@ module top (
   //打印寄存器看看
   genvar i;
   generate
-    for (i = 0; i < 32; i = i + 1) begin : rf_export
+    for (i = 0; i < 16; i = i + 1) begin : rf_export
       assign rf[i] = RegisterFile_init.rf[i];
     end
   endgenerate
 
-  wire [31:0]next_pc;      // 下一条指令的 PC，由 WBU 产生
+  //wire [31:0]next_pc;      // 下一条指令的 PC，由 WBU 产生
   //wire [31:0]inst_out;     // IFU 输出的指令（传给 IDU）
 
   wire [31:0]imm;          // 立即数解码结果（IDU -> EXU）
-  wire [4:0]rd;            // 写回寄存器号（IDU -> WBU）
-  wire [4:0]rs1;           // 源寄存器号（IDU -> RegisterFile）
+  wire [3:0]rd;            // 写回寄存器号（IDU -> WBU）
+  wire [3:0]rs1;           // 源寄存器号（IDU -> RegisterFile）
 
-  wire [4:0]rs2;
+  wire [3:0]rs2;
 
   wire [2:0]func;          // 功能码（IDU -> EXU）
   wire [6:0]func7;
@@ -63,6 +65,7 @@ module top (
   //wire w_ram;
   //wire is_load_type;
   wire is_lbu_type;
+  wire is_lb_type;
   wire is_sb_type;
   wire is_sh_type;
   wire is_branch;
@@ -79,7 +82,7 @@ module top (
 
   wire wb_wen;             // 写回使能（WBU -> RegisterFile）
   wire [31:0] wb_Rresult;  // 写回数据（WBU -> RegisterFile）
-  wire [4:0] wb_rd;        // 写回寄存器号（WBU -> RegisterFile）
+  wire [3:0] wb_rd;        // 写回寄存器号（WBU -> RegisterFile）
 
   reg [31:0] pc_reg = 32'h80000000;       //保存当前 PC值,实现顺序执行和跳转
   assign pc = pc_reg;      //pc_reg的“输出端口”
@@ -101,6 +104,7 @@ module top (
 
   assign a3 = RegisterFile_init.rf[13];//a3
   assign a4 = RegisterFile_init.rf[14];//a4
+  assign a5 = RegisterFile_init.rf[15];//a5
 
   
   always @(posedge clk or posedge rst) begin
@@ -109,12 +113,10 @@ module top (
         pc_reg <= 32'h80000000;
     else
         pc_reg <= next_pc;
-    //$display("[PC_DBG] t=%0t rst=%0d pc_reg=%08x", $time, rst, pc_reg);
   end
 
   //取指
   IFU IFU_init(
-    .clk(clk),
     .pc(pc),
     //.inst_in(inst),
     .inst_out(inst_out)//
@@ -139,6 +141,7 @@ module top (
   .w_ram(w_ram),          //访存
   .is_load_type(is_load_type),
   .is_lbu_type(is_lbu_type),  //字节区分
+  .is_lb_type(is_lb_type),
   .is_sb_type (is_sb_type),
   .is_sh_type(is_sh_type),
   .is_branch(is_branch),
@@ -177,7 +180,7 @@ module top (
     .wdata_ram(rs2_data),     // 要写入的数据 from gpr
     .is_sb_type(is_sb_type),  // 写掩码
     .is_sh_type(is_sh_type),
-    .is_lh_type(is_lh_type),
+    //.is_lh_type(is_lh_type),
     .pc(pc),
     .rdata_ram(rdata_ram)     // out读取内存内容
 );
@@ -186,8 +189,6 @@ module top (
 
 //写入寄存器，更新PC
   WBU WBU_init (
-  .clk(clk),
-  .rst(rst),
   .pc(pc_reg),
   .alu_data(alu_result),//从alu中读取数据
   .alu_addr(alu_ram),// 读地址lw,lbu--------------------
@@ -198,6 +199,7 @@ module top (
   .jalr_en(Jump_en),
   .is_load_type(is_load_type),
   .is_lbu_type(is_lbu_type),
+  .is_lb_type(is_lb_type),
   .is_branch(is_branch),
   .is_lh_type(is_lh_type),
   .is_lhu_type(is_lhu_type),
@@ -232,24 +234,21 @@ endmodule
 module RegisterFile(
   input clk,
   input [31:0]pc,
-  input [4:0]rs1,
-  input [4:0]rs2,
+  input [3:0]rs1,
+  input [3:0]rs2,
   input [31:0] reg_wdata,     // 接收要写入的alu|ram数据
-  input [4:0] reg_waddr,      // 接收要写入的地址rd
+  input [3:0] reg_waddr,      // 接收要写入的地址rd
   input wen,                  // 写使能
   input [31:0]inst_out,
   output  [31:0] rs1_data,
   output  [31:0] rs2_data
 );
   // rf为寄存器数组，大小为32，每个寄存器宽度为32
-  reg[31:0] rf[31:0];
+  reg[31:0] rf[15:0];
   // 写操作：时钟上升沿，当wen为1时，将wdata写入waddr对应的寄存器
   always @(posedge clk) begin
-    //$display("reg_wdata=0x%08x",reg_wdata);
-    //$display("reg_waddr=%05b",reg_waddr);
     if (wen && reg_waddr != 0) begin
       rf[reg_waddr] <= reg_wdata; // 0号寄存器保护
-      //$display("a0=0x%08x",rf[10]);
     end
 
   end

@@ -32,6 +32,24 @@ int printf(const char *fmt, ...)
         count++;
       }
     }
+    else if (*p == 'u')
+    {
+      unsigned int num = va_arg(args, unsigned int);
+      char buf[16];
+      int i = 0;
+      if (num == 0)
+        buf[i++] = '0';
+      while (num)
+      {
+        buf[i++] = '0' + (num % 10);
+        num /= 10;
+      }
+      while (i--)
+      {
+        putch(buf[i]);
+        count++;
+      }
+    }
     else if (*p == 'd')
     {
       int num = va_arg(args, int);

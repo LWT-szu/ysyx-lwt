@@ -22,6 +22,11 @@ typedef struct {
 typedef struct Context Context;
 
 // An event of type @event, caused by @cause of pointer @ref
+// EVENT_SYSCALL（系统调用，小程序主动“让我干点事”）
+// EVENT_ERROR（比如除以0、非法指令等）
+// EVENT_PAGEFAULT 页错误(访问了未映射的内存)
+// EVENT_YIELD（让出CPU）
+// EVENT_IRQ_TIMER（时钟中断）
 // 事件结构体,用于描述一次中断、异常或事件发生时的详细信息
 typedef struct {
   enum {

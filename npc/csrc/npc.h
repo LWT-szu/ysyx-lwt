@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 #ifndef __NPC_H__
 #define __NPC_H__
 
@@ -16,7 +17,7 @@
 #define SERIAL_PORT 0xa00003f8 // 串口（UART）0x10000000
 #define RTC_ADDR 0xa0000048
 #define RTC_ADDR_END 0xa0000050
-#define CONFIG_DIFFTEST
+//#define CONFIG_DIFFTEST
 // 注意如果使用外设（串口、时钟等需要关闭difftest）
 #define AUTO_RUN
 #ifdef __cplusplus
@@ -36,7 +37,7 @@ extern "C" {
 
     typedef struct
     {
-        uint32_t gpr[32];
+        uint32_t gpr[16];
         uint32_t pc;
     }npc_CPU_state;
     
@@ -49,6 +50,12 @@ extern "C" {
     void init_difftest(long img_size,int port);
     void difftest_step();
     uint64_t get_time_in_us();
+
+    static bool is_skip_ref = false;
+    // static inline void is_skip_difftest(){
+    //     is_skip_ref = true;
+    //     //printf("Difftest: skip diff test for this instruction\n");
+    // }
 
 #ifdef __cplusplus
 }
