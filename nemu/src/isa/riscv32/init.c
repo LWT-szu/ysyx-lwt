@@ -29,9 +29,9 @@ static const uint32_t img [] = {
 static void restart() {
   /* Set the initial program counter. */
   cpu.pc = RESET_VECTOR;
-
   /* The zero register is always 0. */
   cpu.gpr[0] = 0;
+  IFDEF(CONFIG_DIFFTEST,cpu.csr.mstatus = 0x00001800); // 仅在开启DiffTest时初始化)
 }
 
 void init_isa() {

@@ -40,6 +40,8 @@ enum
   TYPE_r, // none
   TYPE_B,
 };
+
+
 word_t *csr(word_t addr)
 {
   switch(addr){
@@ -62,7 +64,7 @@ word_t *csr(word_t addr)
 #define immB() do { *imm = SEXT( ( BITS(i, 31, 31)<< 12| BITS(i, 7, 7) << 11 | BITS(i,30,25)  << 5  | BITS(i, 11, 8) << 1 ) , 13) ; } while(0)
 #define shamtI() do { *imm = BITS(i, 25, 20); } while(0)
 #define CSR(imm) *csr(imm)
-#define ECALL(dnpc) { bool success; dnpc = (isa_raise_intr(isa_reg_str2val("a7", &success), s->pc)); }//32E -> a5
+#define ECALL(dnpc) dnpc = (isa_raise_intr(11, s->pc));//32E -> a5
 
 // 指令类型解析出寄存器和立即数
 static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_t *imm, int type) {
@@ -119,7 +121,7 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? 101 ????? 00000 11", lhu    , I, R(rd) = Mr(src1 + imm, 2) & 0xFFFF);//无符号扩展16位
   INSTPAT("??????? ????? ????? 110 ????? 00100 11", ori    , I, R(rd) = src1 | imm);
 
-  INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I,  R(rd) = CSR(imm) ; CSR(imm) = CSR(imm) | src1 ); // 读写 CSR 寄存器
+  INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I,  R(rd) = CSR(imm) ; if(src1 != 0) CSR(imm) = CSR(imm) | src1 ); // 读写 CSR 寄存器
   INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I,  R(rd) = CSR(imm) ; CSR(imm) = src1);            // 读写 CSR 寄存器
 
   INSTPAT("??????? ????? ????? 000 ????? 11000 11", beq    , B, if(src1 == src2) s->dnpc = s->pc + imm); // beq条件判断跳转
@@ -163,9 +165,19 @@ static int decode_exec(Decode *s) {
 
   //add more instruction in here(maybe)
   //ecall,csrrw,csrrs,mret
-  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , r, { cpu.csr.mstatus = (cpu.csr.mstatus & ~0x8) | ((cpu.csr.mstatus & 0x80) >> 4); s->dnpc = cpu.csr.mepc; });//将 mstatus 的 MIE 位设置为 MPIE 的值，然后将 MPIE 清零，最后跳转到 mepc 指定的地址继续执行程序
-  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, ECALL(s->dnpc));
-  INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
+  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , r, { cpu.csr.mstatus = (cpu.csr.mstatus & ~0x8) | ((cpu.csr.mstatus & 0x80) >> 4); 
+                                                                  s->dnpc = cpu.csr.mepc; 
+                                                                  #ifdef CONFIG_ETRACE
+                                                                  printf("\n[Etrace] Mret  ->  pc = 0x%x\n", s->dnpc);
+                                                                  #endif
+                                                                });//将 mstatus 的 MIE 位设置为 MPIE 的值，然后将 MPIE 清零，最后跳转到 mepc 指定的地址继续执行程序
+  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I,  
+                                                                #ifdef CONFIG_ETRACE
+                                                                printf("\n[Etrace] Ecall pc = 0x%x  a7 = %d \n", s->pc, R(17)); 
+                                                                #endif
+                                                                ECALL(s->dnpc)); // ecall 是 “系统调用专用指令”，核心解决 “用户态无法访问内核资源” 的问题；
+  INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak, N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0  ebreak 是 “调试断点专用指令”，核心解决 “程序调试时暂停执行” 的问题。
+  // 二者均触发同步异常，但通过异常原因码、软件约定和硬件设计明确区分
   INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv    , N, INV(s->pc));//inv前面所有的模式匹配规则都无法成功匹配, 则将该指令视为非法指令
   INSTPAT_END();
 

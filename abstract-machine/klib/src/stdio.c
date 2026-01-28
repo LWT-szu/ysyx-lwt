@@ -88,6 +88,50 @@ int printf(const char *fmt, ...)
       putch(ch);
       count++;
     }
+    else if (*p == 'x')
+    {
+      unsigned int num = va_arg(args, unsigned int);
+      char buf[16];
+      int i = 0;
+      if (num == 0)
+        buf[i++] = '0';
+      while (num)
+      {
+        int d = num & 0xf;
+        buf[i++] = (d < 10) ? ('0' + d) : ('a' + d - 10);
+        num >>= 4;
+      }
+      while (i--)
+      {
+        putch(buf[i]);
+        count++;
+      }
+    }
+
+    else if (*p == 'p')
+    {
+      uintptr_t num = (uintptr_t)va_arg(args, void *);
+      putch('0');
+      putch('x');
+      count += 2;
+
+      char buf[2 * sizeof(uintptr_t)];
+      int i = 0;
+      if (num == 0)
+        buf[i++] = '0';
+      while (num)
+      {
+        int d = num & 0xf;
+        buf[i++] = (d < 10) ? ('0' + d) : ('a' + d - 10);
+        num >>= 4;
+      }
+      while (i--)
+      {
+        putch(buf[i]);
+        count++;
+      }
+    }
+
     else
     {
       // 不支持的格式，原样输出

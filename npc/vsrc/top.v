@@ -2,14 +2,13 @@ import "DPI-C" function void halt(input int pc,input int halt_ret);
 module top (
   input clk,
   input rst,
-  //input [31:0]inst,
   output w_ram,
   output is_load_type,
   output [31:0]pc,
   output [31:0]next_pc,
   output [127:0]asm_out1,
 
-  output [31:0] rf[15:0],
+  output [31:0] rf[15:0],//导出寄存器堆内容info r
   output [31:0] rs2_data,
   output [31:0] rdata_ram,
   output [31:0] wdata_ram,
@@ -37,13 +36,31 @@ module top (
   
 );
 
-  //打印寄存器看看
+
+  //打印寄存器看看info r
   genvar i;
   generate
     for (i = 0; i < 16; i = i + 1) begin : rf_export
       assign rf[i] = RegisterFile_init.rf[i];
     end
   endgenerate
+  // 连接 RegisterFile 的 rf 数组到各端口
+  assign zero = RegisterFile_init.rf[0];
+  assign ra   = RegisterFile_init.rf[1];
+  assign sp   = RegisterFile_init.rf[2];
+  assign gp   = RegisterFile_init.rf[3];
+  assign tp   = RegisterFile_init.rf[4];
+  assign t0   = RegisterFile_init.rf[5];
+  assign t1   = RegisterFile_init.rf[6];
+  assign t2   = RegisterFile_init.rf[7];
+  assign s0   = RegisterFile_init.rf[8];
+  assign s1   = RegisterFile_init.rf[9];
+  assign a0   = RegisterFile_init.rf[10];
+  assign a1   = RegisterFile_init.rf[11];
+  assign a2   = RegisterFile_init.rf[12];
+  assign a3   = RegisterFile_init.rf[13];
+  assign a4   = RegisterFile_init.rf[14];
+  assign a5   = RegisterFile_init.rf[15];
 
   //wire [31:0]next_pc;      // 下一条指令的 PC，由 WBU 产生
   //wire [31:0]inst_out;     // IFU 输出的指令（传给 IDU）
@@ -87,29 +104,18 @@ module top (
   reg [31:0] pc_reg = 32'h80000000;       //保存当前 PC值,实现顺序执行和跳转
   assign pc = pc_reg;      //pc_reg的“输出端口”
 
-  //激励文件中寄存器赋值读取
-  
-  assign zero = RegisterFile_init.rf[0];
-  assign ra = RegisterFile_init.rf[1];
-
-  assign sp = RegisterFile_init.rf[2];//sp
-  assign gp = RegisterFile_init.rf[3];//gp
-  assign tp = RegisterFile_init.rf[4];//tp
-  assign s0 = RegisterFile_init.rf[8];//s0
-  assign s1 = RegisterFile_init.rf[9];//s1
-
-  assign a0 = RegisterFile_init.rf[10];//a0
-  assign a1 = RegisterFile_init.rf[11];//a1
-
-
-  assign a3 = RegisterFile_init.rf[13];//a3
-  assign a4 = RegisterFile_init.rf[14];//a4
-  assign a5 = RegisterFile_init.rf[15];//a5
+  reg [11:0] csr_addr;
+  reg [31:0] csr_wdata;
+  reg [31:0] csr_rdata;
+  wire [31:0] csr_mtvec;
+  wire [31:0] csr_mepc;
+  reg is_ecall;
+  reg is_mret;
+  reg csr_write_en;
 
   
   always @(posedge clk or posedge rst) begin
-    
-    if (rst==1)
+    if (rst)
         pc_reg <= 32'h80000000;
     else
         pc_reg <= next_pc;
@@ -146,9 +152,27 @@ module top (
   .is_sh_type(is_sh_type),
   .is_branch(is_branch),
   .is_lh_type(is_lh_type),
-  .is_lhu_type(is_lhu_type)
+  .is_lhu_type(is_lhu_type),
+  .is_ecall(is_ecall),
+  .is_mret(is_mret),
+  .csr_write_en(csr_write_en)
 
   //注意去掉逗号！！！！！！！！！！！！！！
+);
+
+  CSR CSR_init(
+    .clk(clk),
+    .rst(rst),
+    .pc(pc),
+    .trap_NO(a5),
+    .csr_addr(imm[11:0]),
+    .csr_wdata(csr_wdata),
+    .is_ecall(is_ecall),
+    .csr_write_en(csr_write_en),
+
+    .csr_rdata(csr_rdata),
+    .csr_mtvec(csr_mtvec),
+    .csr_mepc(csr_mepc)
 );
 
 //ALU算术逻辑单元
@@ -162,11 +186,14 @@ module top (
   .func7_alu(func7),
   .opcode_alu(opcode),
   .is_branch(is_branch),
+  //.csr_addr(imm[11:0]),
+  .csr_rdata(csr_rdata),
 
   .alu_result(alu_result), //output
   .alu_ram(alu_ram),
   .branch_taken(branch_taken),
-  .branch_target(branch_target)
+  .branch_target(branch_target),
+  .csr_wdata(csr_wdata)//
   //注意去掉逗号！！！！！！！！！！！！！！
 );
 
@@ -203,6 +230,10 @@ module top (
   .is_branch(is_branch),
   .is_lh_type(is_lh_type),
   .is_lhu_type(is_lhu_type),
+  .is_ecall(is_ecall),
+  .is_mret(is_mret),
+  .csr_mtvec(csr_mtvec),
+  .csr_mepc(csr_mepc),
 
   .wb_wen(wb_wen),//  output  wb_wen = reg_en
   .wb_rd(wb_rd),

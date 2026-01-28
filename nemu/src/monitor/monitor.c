@@ -115,6 +115,7 @@ static int parse_args(int argc, char *argv[]) {
 void init_monitor(int argc, char *argv[]) {
   /* Perform some global initialization.初始化工作 */
   /* Parse arguments. */
+  printf("init_monitor\n");
   parse_args(argc, argv);//解析命令行参数,处理传入的参数
   #ifdef CONFIG_FTRACE
   if (elf_file) ftrace_init(elf_file);
@@ -144,7 +145,7 @@ void init_monitor(int argc, char *argv[]) {
   init_difftest(diff_so_file, img_size, difftest_port);
 
   /* Initialize the simple debugger.初始化简易调试器 */
-  init_sdb();
+  init_sdb();//表达式求值、监视点的初始化
 
   IFDEF(CONFIG_ITRACE, init_disasm());
 

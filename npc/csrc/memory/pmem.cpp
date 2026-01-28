@@ -1,10 +1,11 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "npc.h"
 
-#define MEM_SIZE (1 << 24) // 16MB 
-uint32_t pmem[(MEM_SIZE)];
+#define MEM_SIZE  (128 * 1024 * 1024) // 128MB
+uint8_t pmem[(MEM_SIZE)];
 
 // 可以用PC和ALU计算的结果来来访问lw,lbu
 extern "C" int pmem_read(int raddr, int pc, int valid, int wen_ram)
@@ -42,10 +43,10 @@ extern "C" int pmem_read(int raddr, int pc, int valid, int wen_ram)
     // if (valid) printf("pmem_read: raddr=0x%08x pc=0x%08x\n", raddr, pc);
     // printf("PMEM_read : valid = %d\n", valid);
     uint32_t off = raddr - PMEM_BASE;
-    uint32_t idx = (off & ~0x3u) >> 2;
-    if (idx >= MEM_SIZE)
+    //uint32_t idx = (off & ~0x3u) >> 2;// 地址变成4字节对齐
+    if (off >= MEM_SIZE-4)
     {
-        printf("Error: pmem_read access out of range! raddr=0x%x idx=%d\n", raddr, idx);
+        printf("Error: pmem_read access out of range! raddr=0x%x \n", raddr);
         npc_set_state(NPC_ABORT, pc, 1);
         printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
     }
@@ -59,7 +60,10 @@ extern "C" int pmem_read(int raddr, int pc, int valid, int wen_ram)
     }
 #endif
     /* ==================== mtrace ==================== */
-    return pmem[(off & ~0x3u) >> 2]; // 4 字节对齐的地址
+    uint32_t data;
+    memcpy(&data, pmem + (off & ~0x3u), 4);
+    return data;
+    //return pmem[(off & ~0x3u) >> 2]; // 4 字节对齐的地址
 }
 
 /*waddr：写入内存的地址（字节地址，可能不是4字节对齐）
@@ -87,10 +91,10 @@ extern "C" void pmem_write( int waddr,  int wdata, char wmask,int pc)
     }
 
     uint32_t addr = (uint32_t)waddr - PMEM_BASE;
-    uint32_t idx = (addr & ~0x3u) >> 2; // 地址变成4字节对齐
-    if (idx >= MEM_SIZE)
+    //uint32_t idx = (addr & ~0x3u) >> 2; // 地址变成4字节对齐
+    if (addr > MEM_SIZE-4)
     {
-        printf("Error: pmem_write access out of range! waddr=0x%x idx=%d\n", waddr, idx);
+        printf("Error: pmem_write access out of range! waddr=0x%x \n", waddr);
         npc_set_state(NPC_ABORT, pc, 1);
         printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
     }
@@ -98,7 +102,7 @@ extern "C" void pmem_write( int waddr,  int wdata, char wmask,int pc)
     {
         if (wmask & (1 << i))       // 每一位代表当前字节是否需要写,若 wmask 的第 i 位是1，则写入该字节，否则保留原值。
         {
-            ((uint8_t *)&pmem[idx])[i] = (wdata >> (i * 8)) & 0xFF;
+            pmem[(addr & ~0x3u) + i] = (wdata >> (i * 8)) & 0xFF;
         }
     }
     if(waddr == 0xA0000048){
@@ -134,7 +138,7 @@ extern "C" void pmem_write( int waddr,  int wdata, char wmask,int pc)
             exit(1);
         }
         // 把文件内容读到 pmem
-        size_t n = fread(pmem, 1, MEM_SIZE * sizeof(uint32_t), fp);
+        size_t n = fread(pmem, 1, MEM_SIZE, fp);
         printf("Loaded %zu bytes from %s\n", n, filename);
         fclose(fp);
         return n;

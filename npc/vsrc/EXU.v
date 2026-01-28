@@ -9,11 +9,13 @@ module EXU (
   input [6:0]opcode_alu,
   input alu_src,              // 1: imm_alu, 0: rs2_alu
   input is_branch,
+  input [31:0] csr_rdata,
 
   output reg [31:0]alu_result,// 寄存器写回
   output reg [31:0]alu_ram,    // 访存地址
   output reg branch_taken,
-  output reg [31:0]branch_target
+  output reg [31:0]branch_target,
+  output reg [31:0] csr_wdata
   //注意去掉逗号！！！！！！！！！！！！！！
 );
   // 选择ALU第二操作数
@@ -22,9 +24,25 @@ module EXU (
     alu_result = 32'b0;
     alu_ram = 32'b0;
     branch_taken = 1'b0;         
-    branch_target = 32'b0;       
+    branch_target = 32'b0;  
+    csr_wdata = 32'b0;     
     //$display("opcode_alu = %07b,func_alu=%03b,alu_result=%08x,rs1_alu=%08x,in2_alu=%08x| pc = %08x\n",opcode_alu,func_alu,alu_result,rs1_alu,in2_alu,pc);
     case (opcode_alu)
+
+      7'b1110011:begin
+        case (func_alu)
+          3'b010: begin//csrrs
+            csr_wdata = csr_rdata | rs1_alu;
+            alu_result = csr_rdata;
+          end
+          3'b001: begin
+            csr_wdata = rs1_alu;//csrrw
+            alu_result = csr_rdata;
+          end
+        
+          default: csr_wdata = 32'b0;
+        endcase
+      end
     
       7'b0010011: begin // I型算术（如 addi sltiu andi）
         if (func_alu == 3'b000)

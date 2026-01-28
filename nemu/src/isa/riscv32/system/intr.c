@@ -23,8 +23,10 @@ word_t isa_raise_intr(word_t NO, vaddr_t epc) {
    */
   cpu.csr.mcause = NO;
   cpu.csr.mepc   = epc;
-  //printf("isa_raise_intr: mcause = %u, mepc = %u\n", cpu.csr.mcause, cpu.csr.mepc);
-  //printf("cpu.gpr[17] = %u\n", cpu.gpr[17]); // a7
+#ifdef CONFIG_ETRACE
+  printf("[Etrace] mcause = %d, mepc = 0x%x, mtvec = 0x%x\n", 
+          cpu.csr.mcause, cpu.csr.mepc, cpu.csr.mtvec);
+#endif
   return cpu.csr.mtvec;
 }
 

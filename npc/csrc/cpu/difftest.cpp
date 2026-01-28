@@ -4,101 +4,18 @@
 #include <capstone/capstone.h>
 #include <stdio.h>
 #include <assert.h>
-#include <readline/readline.h>
-#include <readline/history.h>
 #include <stdbool.h>
-#include <sys/time.h>
-extern Vtop *top;
-extern uint32_t pmem[];
 
-NPCState npc_state = { .state = NPC_RUNNING};
 npc_CPU_state ref_state;
-
+extern uint32_t pmem[];
 const char *ref_reg[16] = {
     "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
     "s0", "s1", "a0", "a1", "a2", "a3", "a4", "a5"};
 
-static size_t(*cs_disasm_dl)(csh handl,const uint8_t *code,
-    size_t code_size, uint32_t address, size_t count,cs_insn **insn);
-static void (*cs_free_dl)(cs_insn *insn, size_t count);
-
-void (*ref_difftest_memcpy)(paddr_t addr,void *buf,size_t n,bool direction) = NULL;
-void (*ref_difftest_regcpy)(void *dut,bool direction)= NULL;
+void (*ref_difftest_memcpy)(paddr_t addr, void *buf, size_t n, bool direction) = NULL;
+void (*ref_difftest_regcpy)(void *dut, bool direction) = NULL;
 void (*ref_difftest_exec)(uint64_t n) = NULL;
-void (*ref_difftest_raise_intr)(uint64_t NO)=NULL;
-static csh handle;
-
-void npc_set_state(int state,uint32_t pc,uint32_t halt_ret){
-    npc_state.state = state;
-    npc_state.halt_pc = pc;
-    npc_state.halt_ret = halt_ret;
-}
-
-void halt(uint32_t pc,uint32_t halt_ret){
-    npc_set_state(NPC_END,pc,halt_ret);
-}
-
-void init_disassemble(){
-    void *dl_handle;
-    dl_handle = dlopen("/home/lwt/ysyx-workbench/nemu/tools/capstone/repo/libcapstone.so.5", RTLD_LAZY);
-    if (!dl_handle)
-    {
-        fprintf(stderr, "dlopen failed: %s\n", dlerror());
-        exit(1);
-    }
-    assert(dl_handle);
-    
-    cs_err(*cs_open_dl)(cs_arch arch,cs_mode mode,csh *handle) = NULL;
-    cs_open_dl = (cs_err (*)(cs_arch, cs_mode, csh *))dlsym(dl_handle, "cs_open");
-    assert(cs_open_dl);
-
-    cs_disasm_dl = (size_t (*)(csh, const uint8_t *, size_t, uint32_t, size_t, cs_insn **))dlsym(dl_handle, "cs_disasm");
-    assert(cs_disasm_dl);
-
-    cs_free_dl = (void (*)(cs_insn *, size_t))dlsym(dl_handle, "cs_free");
-    assert(cs_free_dl);
-
-    cs_arch arch = CS_ARCH_RISCV;
-    cs_mode mode = CS_MODE_RISCV32;
-    int ret = cs_open_dl(arch,mode,&handle);
-    assert(ret == CS_ERR_OK);
-}
-
-void npc_disassemble(char *str,int size,uint32_t pc,uint32_t inst){
-    cs_insn *insn;
-    uint8_t bytes[4];
-    bytes[0] = inst & 0xff;
-    bytes[1] = (inst >> 8) & 0xff;
-    bytes[2] = (inst >> 16) & 0xff;
-    bytes[3] = (inst >> 24) & 0xff;
-    // 小端字节流
-    //(uint8_t*)&inst
-    size_t count = cs_disasm_dl(handle, bytes, 4, pc, 1, &insn);
-    if (count != 1) {
-        snprintf(str, size, "invalid");
-        printf("npc_disassemble: 反汇编失败! count = %ld, pc=0x%08x inst=0x%08x\n", count, pc, inst);
-    }
-    int ret = snprintf(str,size,"%s",insn->mnemonic);
-    if(insn->op_str[0] != '\0'){
-        snprintf(str + ret, size - ret , "\t%s",insn->op_str);
-    }
-    cs_free_dl(insn,count);
-}
-
-char* npc_readline(const char *prompt){
-    char *line = readline(prompt);
-    if(line && *line) add_history(line);
-    return line;
-}
-
-// 获取当前NPC寄存器状态
-void reg_curr_state(npc_CPU_state *dst){
-    assert(dst != NULL);
-    for(int i = 0;i<16;i++){//???????????
-        dst->gpr[i] = top->rf[i];
-    }
-    dst->pc = top->pc;
-}
+void (*ref_difftest_raise_intr)(uint64_t NO) = NULL;
 
 // 加载参考模型动态库，获取相关函数指针，初始化参考模型状态
 void init_difftest(long img_size,int port){
@@ -184,7 +101,7 @@ void difftest_step(){
 
     if (top->alu_ram == 0xA00003f8 || top->alu_ram == 0xA0000048 || top->alu_ram == 0xA000004c)
     { // 串口地址
-        //printf("Difftest: skip diff test for peripheral access at pc=0x%08x\n", dut_state.pc);
+        printf("Difftest: skip diff test for peripheral access at pc=0x%08x\n", dut_state.pc);
         dut_state.pc += 4; // 跳过该指令，假设是4字节指令
         ref_difftest_regcpy(&dut_state, 1); // 1: DIFFTEST_TO_REF
         return;
@@ -204,14 +121,4 @@ void difftest_step(){
         npc_set_state(NPC_ABORT,dut_state.pc,1);
         return;
     }
-}
-// 获取当前时间，单位微秒
-static uint64_t boot_time = 0;
-uint64_t get_time_in_us()
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    uint64_t now = (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;// 秒转微秒再加上微秒
-    if (boot_time == 0) boot_time = now;// 记录启动时间
-    return now - boot_time;
 }

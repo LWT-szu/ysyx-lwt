@@ -14,8 +14,9 @@
 #define MMAP_WRITE 0x00000002 // can write
 
 // Memory area for [@start, @end)
+// 用于描述一段内存区域的起始和结束地址
 typedef struct {
-  void *start, *end;
+  void *start, *end; // 区域起始地址和结束地址
 } Area;
 
 // Arch-dependent processor context

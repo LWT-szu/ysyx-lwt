@@ -158,7 +158,7 @@ config ITRACE_COND
 
 config DTRACE
   depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
-  bool "Enable Device tracer"
+  bool "Enable Device tracer(dtrace)"
   default y
 
 config DTRACE_COND
@@ -178,6 +178,16 @@ config FTRACE_COND
   string "Only trace function call when the condition is true"
   default "true"
 
+config ETRACE
+  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  bool "Enable exception tracer(etrace)"
+  default n
+
+config ETRACE_COND
+  depends on ETRACE
+  string "Only trace exception when the condition is true"
+  default "true"
+
 config DIFFTEST
   depends on TARGET_NATIVE_ELF
   bool "Enable differential testing"
@@ -185,6 +195,10 @@ config DIFFTEST
   help
     Enable differential testing with a reference design.
     Note that this will significantly reduce the performance of NEMU.
+
+config DIFFTEST_COND
+  depends on DIFFTEST
+  default "true"
 
 choice
   prompt "Reference design"

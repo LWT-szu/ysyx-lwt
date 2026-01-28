@@ -29,6 +29,7 @@ void init_log(const char *log_file) {
   }
   Log("Log is written to %s", log_file ? log_file : "stdout");
   if (log_fp == stdout) {
+    printf("You did not specify a log file [location].\n");
     printf("[Attention!!!]You can specify a log file via the --log=FILE option\n");
   }
   // 默认情况下，log_fp = stdout;，日志会输出到标准输出（即终端/控制台）。

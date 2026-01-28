@@ -31,6 +31,11 @@ f(30) f(31)
 #define PUSH(n) STORE concat(x, n), (n * XLEN)(sp);
 #define POP(n)  LOAD  concat(x, n), (n * XLEN)(sp);
 
+#CONTEXT_SIZE 表示一次 trap 需要在栈上保存分配的“完整上下文”大小
+#它是 32 个通用寄存器 + mcause + mstatus + mepc
+#在栈上占用的总字节数。
+
+#NR_REGS= 32
 #define CONTEXT_SIZE  ((NR_REGS + 3) * XLEN)
 #define OFFSET_SP     ( 2 * XLEN)
 #define OFFSET_CAUSE  ((NR_REGS + 0) * XLEN)
@@ -38,9 +43,18 @@ f(30) f(31)
 #define OFFSET_EPC    ((NR_REGS + 2) * XLEN)
 
 .align 3
+#让 __am_asm_trap 的地址按 2^3 = 8 字节对齐
+
 .globl __am_asm_trap
+#把这个符号导出给链接器,让它对 C 可见
+
 __am_asm_trap:
   addi sp, sp, -CONTEXT_SIZE
+#把 sp 往“低地址”移动 CONTEXT_SIZE 字节
+#即一次性在栈上为异常处理“开辟” CONTEXT_SIZE(280字节) 大小的空间
+
+#__am_asm_trap 是一个地址,在汇编文件中定义的异常入口标签，
+#通过 .globl 导出，供 C 代码写入 mtvec 作为 trap 的入口地址
 
   MAP(REGS, PUSH)
 
@@ -51,23 +65,47 @@ __am_asm_trap:
   STORE t0, OFFSET_CAUSE(sp)
   STORE t1, OFFSET_STATUS(sp)
   STORE t2, OFFSET_EPC(sp)
+  #在新开的栈空间，保存异常发生时的 CPU 上下文（寄存器现场）
+  #trap 汇编保存完现场后，把“现场所在地址”用mv交给后文的 __am_irq_handle
 
   # set mstatus.MPRV to pass difftest
   li a0, (1 << 17)
   or t1, t1, a0
   csrw mstatus, t1
 
+# 在 RISC-V 调用约定里：函数的第 1 个参数放在 a0（x10）
   mv a0, sp
+# 则把 sp 的值，作为第一个参数，传给 __am_irq_handle(sp) 函数
   call __am_irq_handle
-  mv sp, a0 
+ mv sp, a0 
 
   LOAD t1, OFFSET_STATUS(sp)
   LOAD t2, OFFSET_EPC(sp)
   csrw mstatus, t1
   csrw mepc, t2
 
-  MAP(REGS, POP)
+  MAP(REGS, POP)#通用寄存器赋值,宏展开
 
   addi sp, sp, CONTEXT_SIZE
   mret
   #执行 mret 返回异常前的代码处
+
+#由于 RISC-V 栈向低地址增长，因此通过减小 sp 来完成栈帧建立。
+#  高地址
+#│
+#│   ← 旧 sp
+#│
+#│   （栈空间）
+#│
+#│   ← 新 sp
+#│
+#  低地址
+
+#sp 指向的不是“普通栈”，而是一个完整保存了寄存器现场的 Context 结构
+#sp ──▶ Context {
+#         gpr[]
+#         mcause
+#         mstatus
+#         mepc
+#       }
+

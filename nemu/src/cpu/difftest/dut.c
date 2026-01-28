@@ -115,6 +115,7 @@ void init_difftest(char *ref_so_file, long img_size, int port) {
 // 检查参考模型和 DUT 的寄存器是否一致，如果不一致则触发异常
 static void checkregs(CPU_state *ref, vaddr_t pc) {
   if (!isa_difftest_checkregs(ref, pc)) {
+    printf(ANSI_FMT("Differential Test Failed at PC = " FMT_WORD "!\n", ANSI_FG_RED), pc);
     nemu_state.state = NEMU_ABORT;
     nemu_state.halt_pc = pc;
     isa_reg_display();

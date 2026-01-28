@@ -16,6 +16,10 @@ module WBU (
   input is_branch,
   input is_lh_type,
   input is_lhu_type,
+  input is_ecall,
+  input is_mret,
+  input [31:0] csr_mtvec,
+  input [31:0] csr_mepc,
 
   output wb_wen,
   output [3:0]wb_rd,
@@ -27,7 +31,7 @@ module WBU (
 );
   wire [7:0] lbu_byte;
   wire [15:0] lh_byte;
-  reg [31:0] wb_Rresult_reg;
+  reg [31:0] wb_Rresult_reg;//这个东西也可以丢掉了，直接assign wb_Rresult
   //选择器
   assign lbu_byte =
     (alu_addr[1:0] == 2'b00) ? ram_data[7:0] ://////alu_data=0???????
@@ -66,6 +70,12 @@ module WBU (
 
     else if (Jal_en) begin
       next_pc =alu_data;
+    end
+    else if (is_ecall) begin
+      next_pc = csr_mtvec;
+    end
+    else if (is_mret) begin
+      next_pc = csr_mepc;
     end
 
     else begin

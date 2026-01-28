@@ -50,13 +50,14 @@ INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
 CXXFLAGS += -fsanitize=address
 CFLAGS += -fsanitize=address
+CXXFLAGS += -I$(abspath ./include)#verilator只能识别CXXFLAGS
 # 加载和显示图像的库
 LDFLAGS += -lSDL2 -lSDL2_image -lreadline -fsanitize=address
 
 # ---------------- Capstone 自动识别与依赖配置 ----------------
-# 检查 csrc/npc.h 是否定义了 CONFIG_NPC_ITRACE 宏（表示启用指令反汇编 itrace）
+# 检查 csrc/npc.h 是否定义了 DISASSEMBLE 宏（表示启用指令反汇编 itrace）
 # 如果启用，则自动添加 Capstone 头文件和动态库依赖
-ifeq ($(findstring CONFIG_NPC_ITRACE, $(shell grep -o CONFIG_NPC_ITRACE csrc/npc.h)),CONFIG_NPC_ITRACE)
+ifeq ($(findstring DISASSEMBLE, $(shell grep -o DISASSEMBLE include/npc.h)),DISASSEMBLE)
 CAPSTONE_PATH = $(abspath ../nemu/tools/capstone/repo)
 LIBCAPSTONE = $(CAPSTONE_PATH)/libcapstone.so.5
 CXXFLAGS += -I$(CAPSTONE_PATH)/include

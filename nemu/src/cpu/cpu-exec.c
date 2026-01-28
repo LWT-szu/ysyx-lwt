@@ -70,6 +70,10 @@ static void exec_once(Decode *s, vaddr_t pc) {
   s->snpc = pc; // 下一条指令的PC
   isa_exec_once(s); // 真正执行指令的地方,解码并执行一条指令
   cpu.pc = s->dnpc; // 将dnpc赋值给全局的cpu的pc
+  // if (cpu.pc >= 0x8000150F && cpu.pc <= 0x80001524){
+  //   printf("\npc = 0x%x\n", cpu.pc);
+  //   //isa_reg_display();
+  // }
 
 /* ==================== Itrace ==================== */
 #ifdef CONFIG_ITRACE
@@ -127,7 +131,7 @@ static void execute(uint64_t n) {
     IFDEF(CONFIG_DEVICE, device_update());
   }
 }
-
+// 统计仿真信息并输出
 static void statistic() {
   IFNDEF(CONFIG_TARGET_AM, setlocale(LC_NUMERIC, ""));
 #define NUMBERIC_FMT MUXDEF(CONFIG_TARGET_AM, "%", "%'") PRIu64
@@ -162,8 +166,10 @@ void cpu_exec(uint64_t n) {
 
   switch (nemu_state.state) {
     case NEMU_RUNNING: nemu_state.state = NEMU_STOP; break;
+    // 执行完一批指令后，自动把状态从 RUNNING 切回 STOP，以便下次可以继续单步或批量执行。
 
     case NEMU_END: case NEMU_ABORT:
+    //根据结束状态来判断程序是否运行成功
       Log("nemu: %s at pc = " FMT_WORD,
           (nemu_state.state == NEMU_ABORT ? ANSI_FMT("ABORT", ANSI_FG_RED) :
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :

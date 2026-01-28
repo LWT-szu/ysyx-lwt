@@ -26,7 +26,7 @@ void cpu_exec(uint64_t n); // src/cpu/difftest/ref.c
 void set_nemu_state(int state, vaddr_t pc, int halt_ret);
 void invalid_inst(vaddr_t thispc);//nemu/src/engine/interpreter/hostcall.c
 
-#define NEMUTRAP(thispc, code) set_nemu_state(NEMU_END, thispc, code)
+#define NEMUTRAP(thispc, code) set_nemu_state(NEMU_END, thispc, code) // nemu/src/isa/riscv32/inst.c
 #define INV(thispc) invalid_inst(thispc) // nemu/src/isa/riscv32/inst.c
 
 #endif

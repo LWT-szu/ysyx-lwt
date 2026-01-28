@@ -18,7 +18,7 @@ void srand(unsigned int seed) {
 int abs(int x) {
   return (x < 0 ? -x : x);
 }
-
+// 把数字字符串转成 int 类型的整数。
 int atoi(const char* nptr) {
   int x = 0;
   while (*nptr == ' ') { nptr ++; }

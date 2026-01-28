@@ -25,7 +25,7 @@
 #include "memory/paddr.h"
 #include <regex.h>
 // 注意引入读取寄存器数值的文件paddr.h
-static int is_batch_mode = false;
+static int is_batch_mode = false;// 是否批处理模式
 extern bool make_token(char *e);
 extern int set_watchpoint(const char *expr_str);
 extern bool delete_watchpoint(int NO);
@@ -68,7 +68,7 @@ static int cmd_si(char *args)
   int step = 1; // 默认执行1步
   if (args != NULL && args[0] != '\0')
   {
-    step = atoi(args);
+    step = atoi(args); // 把数字字符串转成 int 类型的整数。
   }
   cpu_exec(step);
   return 0;
@@ -238,7 +238,7 @@ static int cmd_help(char *args) {
   }
   return 0;
 }
-
+// 设置批处理模式
 void sdb_set_batch_mode() {
   is_batch_mode = true;
 }
@@ -249,6 +249,7 @@ void sdb_mainloop() {
     cmd_c(NULL);
     return;
   }
+  //printf("is_batch_mode=%d\n", is_batch_mode);
   // 主循环：读取输入并处理
   for (char *str; (str = rl_gets()) != NULL; ) {
     char *str_end = str + strlen(str);
