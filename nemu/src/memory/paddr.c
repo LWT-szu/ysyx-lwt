@@ -79,5 +79,7 @@ void paddr_write(paddr_t addr, int len, word_t data) {
   // }
   //printf("paddr_write: addr=0x%08x len=%d data=0x%08x pc=0x%08x\n", addr, len, data, cpu.pc);
   fflush(stdout);
-  out_of_bound(addr);
+  // #ifndef CONFIG_DEFFTEST
+    out_of_bound(addr);
+  // #endif
 }

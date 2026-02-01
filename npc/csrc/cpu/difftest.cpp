@@ -12,6 +12,8 @@ const char *ref_reg[16] = {
     "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
     "s0", "s1", "a0", "a1", "a2", "a3", "a4", "a5"};
 
+bool is_skip_ref = false;
+
 void (*ref_difftest_memcpy)(paddr_t addr, void *buf, size_t n, bool direction) = NULL;
 void (*ref_difftest_regcpy)(void *dut, bool direction) = NULL;
 void (*ref_difftest_exec)(uint64_t n) = NULL;
@@ -75,38 +77,38 @@ void difftest_step(){
     //printf("init_DUT: dut.pc = 0x%08x\n", dut_state.pc);
     //printf("NPC: sizeof(npc_CPU_state) = %ld\n", sizeof(npc_CPU_state));
 
-    // if(is_skip_ref){
-    //     printf("Difftest: skip diff test at pc=0x%08x\n", dut_state.pc);
-    //     ref_difftest_regcpy(&dut_state, 1); // 1: DIFFTEST_TO_REF
-    //     is_skip_ref = false;
-    //     return;
-    // }
+    static uint32_t last_skip_pc = 0;// 上一次跳过的PC地址
 
-    // if (is_skip_ref)
-    // {
-    //     // to skip the checking of an instruction, just copy the reg state to reference design
-    //     ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);
-    //     is_skip_ref = false;
-    //     return;
-    // }
+    if(is_skip_ref){
+         // Current instruction is MMIO. Sync and Mark skipping.
+        ref_difftest_regcpy(&dut_state, 1); // 1: DIFFTEST_TO_REF
+        last_skip_pc = dut_state.pc;
+        is_skip_ref = false; // Reset flag
+        return;
+    }
+    
+    if (last_skip_pc != 0) {
+        if (dut_state.pc == last_skip_pc) {
+             // Still at the same PC (stall?). Keep skipping.
+             ref_difftest_regcpy(&dut_state, 1); 
+             return;
+        }
+        // We moved to a new PC!
+        // Sync Ref to this new state (skipping the execution of the old PC).
+        ref_difftest_regcpy(&dut_state, 1);
+        last_skip_pc = 0; 
+        return;
+    }
+
     // 1. 让 REF 执行一条指令
-    // ref_difftest_exec(1);
+    //printf("Difftest: exec at pc=0x%08x\n", dut_state.pc);
+    ref_difftest_exec(1);
 
     // 2. 从 REF 拿回寄存器
     // npc_CPU_state ref_state;
     ref_difftest_regcpy(&ref_state, 0); // 0: DIFFTEST_TO_DUT
-    ref_difftest_exec(1);               // 使用nemu执行指令前的状态去更新比较，之前一直都是用执行后的去比较，就导致nemu立即写回reg
-
-    // 3. 取 DUT 自己当前寄存器
-
-    if (top->alu_ram == 0xA00003f8 || top->alu_ram == 0xA0000048 || top->alu_ram == 0xA000004c)
-    { // 串口地址
-        printf("Difftest: skip diff test for peripheral access at pc=0x%08x\n", dut_state.pc);
-        dut_state.pc += 4; // 跳过该指令，假设是4字节指令
-        ref_difftest_regcpy(&dut_state, 1); // 1: DIFFTEST_TO_REF
-        return;
-    }
-    // 4. 比较：所有寄存器和PC
+    
+    // 3. 比较：所有寄存器和PC
     for(int i = 0;i<16;i++){
         if(dut_state.gpr[i] != ref_state.gpr[i]){
             printf("Difftest Fail: %s NPC=0x%08x REF=0x%08x pc=0x%08x\n", ref_reg[i], dut_state.gpr[i], ref_state.gpr[i], dut_state.pc);

@@ -19,7 +19,7 @@ extern size_t pmem_init(const char *filename);
 VerilatedContext *contextp = NULL;
 Vtop *top = NULL;
 VerilatedVcdC *m_trace = NULL;
-int end = 0; // 单步执行用的end
+//int end = 0; // 单步执行用的end
 int print_inst = 0; // 是否打印指令
 
 void init_npc_monitor(int argc, char **argv)
@@ -47,11 +47,20 @@ void init_npc_monitor(int argc, char **argv)
         top->clk = 1;
         top->eval();
     }
+    top->clk = 0; top->eval();
     top->rst = 0;
-    init_difftest(imge_size, 0);
-#else
-    pmem_init(argv[1]);
+    // init_difftest(imge_size, 0);
+    #ifdef CONFIG_RTT
+    // 使用 MEM_SIZE (128MB) 而不是 img_size
+    // 原因：防止 REF (NEMU) 的 BSS/Heap 区域包含垃圾数据。
+    // NPC 的物理内存默认为 0，REF 也必须清零，否则程序访问未初始化区域时会误报 Mismatch。
+    // 虽然有微小的启动开销，但为了正确性是值得的。
+        init_difftest(MEM_SIZE, 0); // Sync full 128MB memory to clear garbage in REF
+    #else
+        init_difftest(imge_size, 0);
+    #endif
 #endif
+
     printf("load file %s\n", argv[1]);
 #ifdef DISASSEMBLE
     init_disassemble();
@@ -72,7 +81,7 @@ void init_npc_monitor(int argc, char **argv)
     m_trace->open("wave.vcd");
 #endif
 
-    end = 0;
+    //end = 0;
 }
 
 // 新增清理函数：专门负责关波形、删对象、关文件

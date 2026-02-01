@@ -33,13 +33,26 @@ __EXPORT void difftest_memcpy(paddr_t addr, void *buf, size_t n, bool direction)
 // `direction`为`DIFFTEST_TO_REF`时, 设置REF的寄存器状态为`dut`;
 // NEMU作为REF时使用
 __EXPORT void difftest_regcpy(void *dut, bool direction) {
-  //printf("dut=%p, direction=%d\n", dut, direction);
-  //printf("NEMU: sizeof(cpu) = %ld\n", sizeof(cpu));
-  if(direction == DIFFTEST_TO_DUT){
-    memcpy(dut, &cpu, sizeof(cpu)); //???????
-  }
-  else{
-    memcpy(&cpu, dut, sizeof(cpu));
+  // Define structure compatible with NPC (RV32E)
+  typedef struct {
+    uint32_t gpr[16];
+    uint32_t pc;
+  } npc_difftest_context;
+
+  npc_difftest_context *ctx = (npc_difftest_context *)dut;
+
+  if (direction == DIFFTEST_TO_DUT) {
+    // REF -> DUT
+    for (int i = 0; i < 16; i++) {
+      ctx->gpr[i] = cpu.gpr[i];
+    }
+    ctx->pc = cpu.pc;
+  } else {
+    // DUT -> REF
+    for (int i = 0; i < 16; i++) {
+      cpu.gpr[i] = ctx->gpr[i];
+    }
+    cpu.pc = ctx->pc;
   }
 }
 // 让REF执行`n`条指令

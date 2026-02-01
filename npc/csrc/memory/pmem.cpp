@@ -4,12 +4,21 @@
 #include <string.h>
 #include "npc.h"
 
-#define MEM_SIZE  (128 * 1024 * 1024) // 128MB
 uint8_t pmem[(MEM_SIZE)];
+// 确保引用了全局变量
+extern bool is_skip_ref;
 
 // 可以用PC和ALU计算的结果来来访问lw,lbu
 extern "C" int pmem_read(int raddr, int pc, int valid, int wen_ram)
 {
+    // 1. 串口读取拦截 (Hard-coded range to be safe)
+    // if (raddr >= 0xa00003f8 && raddr < 0xa0000400) {
+    //     is_skip_ref = true;
+    //     // LSR (Line Status Register) at offset 5 => 0xa00003fd
+    //     if (raddr == 0xa00003fd) return 0x60; // THRE | TEMT
+    //     return 0;
+    // }
+
     if (raddr < PMEM_BASE)
     {
         printf("Error: blow base raddr=0x%08x base=0x%08x pc=0x%08x\n", raddr, PMEM_BASE, pc);
@@ -17,31 +26,19 @@ extern "C" int pmem_read(int raddr, int pc, int valid, int wen_ram)
         printf("\33[1;31mNPC : HIT ABORT TRAP at pc = 0x%08x\33[0m\n", npc_state.halt_pc);
     }
 
-    if (raddr == RTC_ADDR)
+    if (raddr == RTC_ADDR)//0xa0000048
     {
         uint64_t now = get_time_in_us();
-        // is_skip_difftest ();
-        //printf("is_skip_ref = %d\n", is_skip_ref);
-        // return (uint32_t)(now & 0xFFFFFFFF); // 低32位
-        #ifdef CONFIG_DIFFTEST
-        return 0xA0000000;
-        #else
+        is_skip_ref = true;
         return (uint32_t)(now & 0xFFFFFFFF); // 低32位
-        #endif
     }
     if (raddr == RTC_ADDR + 4)
     {
         uint64_t now = get_time_in_us();
-        // is_skip_difftest();
-        //printf("is_skip_ref = %d\n", is_skip_ref);
-        #ifdef CONFIG_DIFFTEST
-            return 0xA0000000;
-        #else
-            return (uint32_t)(now >> 32); // 高32位
-        #endif
+        is_skip_ref = true;
+        return (uint32_t)(now >> 32); // 高32位
     }
-    // if (valid) printf("pmem_read: raddr=0x%08x pc=0x%08x\n", raddr, pc);
-    // printf("PMEM_read : valid = %d\n", valid);
+
     uint32_t off = raddr - PMEM_BASE;
     //uint32_t idx = (off & ~0x3u) >> 2;// 地址变成4字节对齐
     if (off >= MEM_SIZE-4)
@@ -83,10 +80,10 @@ extern "C" void pmem_write( int waddr,  int wdata, char wmask,int pc)
     if (waddr == SERIAL_PORT)
     {
         //printf("[SERIAL] write: waddr=0x%08x, wdata=0x%08x, wmask=0x%02x\n", waddr, wdata, wmask);
-        //is_skip_difftest();
+        // 【必须把这行加回来】
+        is_skip_ref = true;
         putchar(wdata & 0xFF);
         fflush(stdout);               // 确保输出及时刷新：
-        // printf("hello!");
         return;
     }
 

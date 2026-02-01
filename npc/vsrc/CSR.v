@@ -30,7 +30,7 @@ module CSR(
             mtvec <= 32'b0;
             mepc <= 32'b0;
             mcause <= 32'b0;
-            mstatus <= 32'h00005170; //默认MIE置位00001800????
+            mstatus <= 32'h00; //默认MIE置位00001800????00005170???0000???
         end else begin
             mcycle_merge <= mcycle_merge + 1;
             if(is_ecall)begin
