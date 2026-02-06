@@ -223,16 +223,21 @@ int isa_exec_once(Decode *s) {
     int imm = (int32_t)inst >> 20;
     if (rd == 0 && rs1 == 1 && imm == 0)
     {
-      // ret 指令 (jalr x0, x1, 0)
       ftrace_depth--;
       if (ftrace_depth < 0) ftrace_depth = 0;
-      printf(FMT_WORD ":%*sret  [%s]\n", s->pc, ftrace_depth * 2, "", ftrace_funcname(s->pc));
+      // [这里是你问的地方] 使用 s->pc，表示“从当前函数返回”
+      printf(FMT_WORD ":%*sret  [%s]\n", 
+        s->pc, 
+        ftrace_depth * 2, "", 
+        ftrace_funcname(s->pc)); 
     }
-    else
+    else if (rd != 0) // 普通的函数指针调用
     {
-      // 普通的 jalr 函数调用
-      // 此时 s->dnpc 已经被更新为 (src1 + imm) & ~1
-      printf(FMT_WORD ":%*scall [%s@0x%08x]\n", s->dnpc, ftrace_depth * 2, "", ftrace_funcname(s->dnpc), s->dnpc);
+      printf(FMT_WORD ":%*scall [%s@0x%08x]\n",
+             s->pc,
+             ftrace_depth * 2, "",
+             ftrace_funcname(s->dnpc), // call 查目标地址
+             s->dnpc);
       ftrace_depth++;
     }
   }
