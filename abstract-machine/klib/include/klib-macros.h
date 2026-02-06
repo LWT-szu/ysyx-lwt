@@ -4,14 +4,17 @@
 #define ROUNDUP(a, sz)      ((((uintptr_t)a) + (sz) - 1) & ~((sz) - 1))
 #define ROUNDDOWN(a, sz)    ((((uintptr_t)a)) & ~((sz) - 1))
 #define LENGTH(arr)         (sizeof(arr) / sizeof((arr)[0]))
+// 定义一个内存区域结构体 Area，并提供初始化和检查宏
 #define RANGE(st, ed)       (Area) { .start = (void *)(st), .end = (void *)(ed) }
 #define IN_RANGE(ptr, area) ((area).start <= (ptr) && (ptr) < (area).end)
 
 #define STRINGIFY(s)        #s
+// 把参数 s 直接变成字符串字面量
 #define TOSTRING(s)         STRINGIFY(s)
 #define _CONCAT(x, y)       x ## y
 #define CONCAT(x, y)        _CONCAT(x, y)
 
+// 输出单个字符到终端
 #define putstr(s) \
   ({ for (const char *p = s; *p; p++) putch(*p); })
 

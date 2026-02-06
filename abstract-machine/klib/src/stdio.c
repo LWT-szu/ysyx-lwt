@@ -5,34 +5,38 @@
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 
+// 使用 va_list args; va_start(args, fmt); 开始处理可变参数
+// 通过 va_arg(args, 类型) 依次获取每个参数的值
+// 返回值是输出的字符总数
 int printf(const char *fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
   int count = 0;
-
+  // 遍历格式字符串的每个字符
   for (const char *p = fmt; *p; ++p)
   {
-    if (*p != '%')
+    if (*p != '%')// 普通字符，直接输出
     {
       putch(*p);
       count++;
       continue;
     }
+    ++p;// 移动字符，指向下一个字符
     // 处理格式符
-    ++p;
-    if (*p == 's')
+    if (*p == 's')// 字符串
     {
       const char *str = va_arg(args, const char *);
       if (!str)
         str = "(null)";
       while (*str)
       {
-        putch(*str++);
+        putch(*str);
+        str++;
         count++;
       }
     }
-    else if (*p == 'u')
+    else if (*p == 'u')// 无符号整数
     {
       unsigned int num = va_arg(args, unsigned int);
       char buf[16];
@@ -41,8 +45,8 @@ int printf(const char *fmt, ...)
         buf[i++] = '0';
       while (num)
       {
-        buf[i++] = '0' + (num % 10);
-        num /= 10;
+        buf[i++] = '0' + (num % 10);// 取个位数字字符
+        num /= 10;// 取整 个位已经写入buf了，所以除以10
       }
       while (i--)
       {
@@ -82,13 +86,13 @@ int printf(const char *fmt, ...)
         count++;
       }
     }
-    else if (*p == 'c')
+    else if (*p == 'c')// 字符
     {
       char ch = (char)va_arg(args, int);
       putch(ch);
       count++;
     }
-    else if (*p == 'x')
+    else if (*p == 'x')// 十六进制整数
     {
       unsigned int num = va_arg(args, unsigned int);
       char buf[16];
@@ -108,22 +112,24 @@ int printf(const char *fmt, ...)
       }
     }
 
-    else if (*p == 'p')
+    else if (*p == 'p')// 指针
     {
+      //32位指针，四字节
       uintptr_t num = (uintptr_t)va_arg(args, void *);
       putch('0');
       putch('x');
       count += 2;
 
-      char buf[2 * sizeof(uintptr_t)];
+      char buf[2 * sizeof(uintptr_t)];// 每个字节两个十六进制字符
       int i = 0;
       if (num == 0)
         buf[i++] = '0';
       while (num)
       {
-        int d = num & 0xf;
-        buf[i++] = (d < 10) ? ('0' + d) : ('a' + d - 10);
-        num >>= 4;
+        int d = num & 0xf;// 取最低4位，为了转换成十六进制字符
+        buf[i++] = (d < 10) ? ('0' + d) : ('a' + d - 10);// 转成字符
+        //如果直接用 buf[i++] = '0' + d;，那么 d=10 时会得到 ':'，不是合法的十六进制字符
+        num >>= 4;// 右移4位，对8到15位继续处理
       }
       while (i--)
       {
@@ -134,10 +140,9 @@ int printf(const char *fmt, ...)
 
     else
     {
-      // 不支持的格式，原样输出
-      //putch('%');
+    // 不支持的格式，原样输出
       putch(*p);
-      count += 2;
+      count += 1;
     }
   }
 
@@ -149,6 +154,9 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
   panic("Not implemented");
 }
 
+// 将格式化字符串fmt写入缓冲区 out，返回写入的字符个数
+// 例：sprintf(buf, "num=%d, str=%s", 42, "hello");
+//    buf = "num=42, str=hello"
 int sprintf(char *out, const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt); // 可变参数列表
@@ -201,7 +209,7 @@ int sprintf(char *out, const char *fmt, ...) {
   va_end(ap);
   return q - out; // 返回输出字符个数
 }
-
+// 将格式化字符串fmt写入缓冲区 out，最多写入 n-1 个字符，保证以 '\0' 结尾
 int snprintf(char *out, size_t n, const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -209,7 +217,7 @@ int snprintf(char *out, size_t n, const char *fmt, ...) {
   va_end(ap);
   return ret;
 }
-
+// 将格式化字符串fmt写入缓冲区 out，最多写入 n-1 个字符，保证以 '\0' 结尾
 int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
   char *q = out;
   const char *p = fmt;
@@ -241,12 +249,12 @@ int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
       } else if (*p == 'c') {
         char ch = (char)va_arg(ap, int);
         if (written < n - 1) *q++ = ch, written++;
-      } else {
+      } else {// 其它格式直接输出
         if (written < n - 1) *q++ = '%', written++;
         if (written < n - 1) *q++ = *p, written++;
       }
       p++;
-    } else {
+    } else {// 普通字符直接输出
       *q++ = *p++;
       written++;
     }

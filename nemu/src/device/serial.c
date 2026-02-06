@@ -39,7 +39,7 @@ static void serial_putc(char ch) {
 
 /*写数据寄存器（offset==0）时，把刚写入的那个字节通过 serial_putc 输出到主机终端。
 读操作直接报错（NEMU只支持写串口）。
-当CPU模拟代码访问这个区间（比如写0xa00003f8）时，NEMU会经过mmio_write或pio_write，
+当CPU模拟代码访问这个区间（比如写0xa00003f8）时，NEMU会经过mmio_write，
 最终查表找到串口的handler，然后自动调用serial_io_handler。*/
 static void serial_io_handler(uint32_t offset, int len, bool is_write) {
   assert(len == 1);
@@ -47,6 +47,7 @@ static void serial_io_handler(uint32_t offset, int len, bool is_write) {
     /* We bind the serial port with the host stderr in NEMU. */
     case CH_OFFSET:
       if (is_write) serial_putc(serial_base[0]);// 主机输出
+      // 对 serial_base 这个指针指向的内存地址的解引用，也就是访问这块内存的第一个字节的值
       else panic("do not support read");
       break;
     default: panic("do not support offset = %d", offset);
@@ -54,7 +55,10 @@ static void serial_io_handler(uint32_t offset, int len, bool is_write) {
 }
 
 void init_serial() {
+  // 模拟串口的数据寄存器
+  // 其实serial_base拿到的是当前的 p_space 指针，即当前 I/O 空间的起始地址
   serial_base = new_space(8); // 分配8字节的串口寄存器空间
+  printf("serial_base = %p\n", serial_base);
 #ifdef CONFIG_HAS_PORT_IO
   add_pio_map ("serial", CONFIG_SERIAL_PORT, serial_base, 8, serial_io_handler);
 #else

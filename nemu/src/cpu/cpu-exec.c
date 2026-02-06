@@ -31,6 +31,10 @@ uint64_t g_nr_guest_inst = 0; // 统计执行的客户指令数量
 static uint64_t g_timer = 0; // 模拟硬件定时器,定义并初始化定时器 us
 static bool g_print_step = false; // 定义并初始化单步打印标志
 
+// [NEW] 定义全局标志位 用于演示状态机跃迁
+bool key_read = false;
+extern word_t key_ret; // [NEW] 引入返回值
+
 /* ====================  Iringbuf ==================== */
 static char iringbuf[IRINGBUF_SIZE][128];
 static int iringbuf_pos = 0;          // 当前写入指针（下一个要写的位置）
@@ -42,6 +46,21 @@ void device_update();
 // 执行过程中的调试跟踪和差异测试,调试、验证和定位错误
 //_this是一个指向Decode结构体的指针
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
+
+  // [NEW] 键盘状态机观测逻辑 (After State)
+  if (key_read) {
+      // 避开猜测寄存器的坑，直接显示核心事实：数据已到达
+      printf("\033[1;32mAfter:  PC=" FMT_WORD " (Next Instruction)\033[0m\n", cpu.pc);
+#ifdef CONFIG_ITRACE
+      printf("\033[1;34m        Inst: %s\033[0m\n", _this->logbuf);
+#else
+      printf("s->isa.inst = 0x%08x\n", _this->isa.inst);
+#endif
+      printf("\033[1;32m        a4  = 0x" FMT_WORD " (Key Code Received)\033[0m\n", cpu.gpr[14]);
+      printf("==============================================================\n\n");
+      //isa_reg_display(); // 显示寄存器状态
+      key_read = false;
+  }
 
 /* ==================== Itrace ==================== */
 // 若开启指令跟踪（CONFIG_ITRACE_COND），则输出指令日志到日志系统
@@ -122,10 +141,10 @@ static void exec_once(Decode *s, vaddr_t pc) {
 
 // 在主循环的基础上,模拟不断执行指令
 static void execute(uint64_t n) {
-  Decode s; // 声明后会在后续代码中被赋值和初始化，不需要一开始就全部初始化
+  Decode s; // 指令声明 Decode结构体变量s,用于存放指令的解码信息
   for (;n > 0; n --) {
-    exec_once(&s, cpu.pc);
-    g_nr_guest_inst ++;
+    exec_once(&s, cpu.pc); // 会返回0
+    g_nr_guest_inst ++;// 统计执行的客户指令数量
     trace_and_difftest(&s, cpu.pc);
     if (nemu_state.state != NEMU_RUNNING) break;
     IFDEF(CONFIG_DEVICE, device_update());
@@ -140,7 +159,7 @@ static void statistic() {
   if (g_timer > 0) Log("simulation frequency = " NUMBERIC_FMT " inst/s", g_nr_guest_inst * 1000000 / g_timer);
   else Log("Finish running in less than 1 us and can not calculate the simulation frequency");
 }
-
+// 两个宏panic()和TODO()会调用它,当断言失败时调用该函数，显示寄存器状态并输出统计信息
 void assert_fail_msg() {
   isa_reg_display();
   statistic();

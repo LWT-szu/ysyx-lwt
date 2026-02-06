@@ -38,7 +38,7 @@ void vga_update_screen();
 void device_update() {
   static uint64_t last = 0;
   uint64_t now = get_time();
-  if (now - last < 1000000 / TIMER_HZ) {
+  if (now - last < 1000000 / TIMER_HZ) {// 1/60 秒
     return;
   }
   last = now;
@@ -56,9 +56,9 @@ void device_update() {
       // If a key was pressed
       case SDL_KEYDOWN:
       case SDL_KEYUP: {
-        uint8_t k = event.key.keysym.scancode;
-        bool is_keydown = (event.key.type == SDL_KEYDOWN);
-        send_key(k, is_keydown);
+        uint8_t k = event.key.keysym.scancode;// 获取键码
+        bool is_keydown = (event.key.type == SDL_KEYDOWN);// 判断是按下还是释放
+        send_key(k, is_keydown);// 发送键码到键盘设备
         break;
       }
 #endif

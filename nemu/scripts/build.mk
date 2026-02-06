@@ -1,10 +1,14 @@
 .DEFAULT_GOAL = app
 
 # Add necessary options if the target is a shared library
+#ifeq 是 条件判断语句，判断变量 SHARE （共享库）是否等于 1
 ifeq ($(SHARE),1)
 SO = -so
 CFLAGS  += -fPIC -fvisibility=hidden
+# -fPIC 生成位置无关代码，适合共享库
+# -fvisibility=hidden 隐藏符号，减少导出符号，提升加载速度和安全性
 LDFLAGS += -shared -fPIC
+# -shared 生成共享库 (.so)
 endif
 
 WORK_DIR  = $(shell pwd)

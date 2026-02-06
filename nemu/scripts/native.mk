@@ -25,10 +25,16 @@ $(BINARY):: compile_git
 # Some convenient rules
 
 override ARGS ?= --log=$(BUILD_DIR)/nemu-log.txt
+# ARGS是执行命令时的参数
+# ?= 是“若未定义则赋值”
 override ARGS += $(ARGS_DIFF)
+#它表示即使你在命令行中手动指定了 ARGS，这里定义的值也会覆盖或追加进去
 
 # Command to execute NEMU
 IMG ?=
+$(info NEMU receive IMG is $(IMG) , from $(AM_HOME)/scripts/platform/nemu.mk)
+#在abstract-machine/scripts/platform/nemu.mk
+#中定义的 image 目标会生成 IMAGE.bin 镜像文件
 NEMU_EXEC := $(BINARY) $(ARGS) $(IMG)
 
 run-env: $(BINARY) $(DIFF_REF_SO)

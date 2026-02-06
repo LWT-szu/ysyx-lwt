@@ -24,6 +24,7 @@ sed -E -i -e "s/(l[bhw]u?)${sp_require}(${reg})${comma}(${symbol})(${sp}[-+]${sp
 # insert inst-replace.h to each .h files
 minirv_path=$AM_HOME/tools/minirv
 lut_bin_path=$minirv_path/lut.bin
+#这里把 inst-replace.h 的包含指令插入到汇编文件开头
 sed -i "1i#include \"$minirv_path/inst-replace.h\"" $dst_S
 flock $minirv_path/.lock -c "test -e $lut_bin_path || (cd $minirv_path && gcc gen-lut.c && ./a.out && rm a.out)"
 

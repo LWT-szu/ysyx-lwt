@@ -63,7 +63,8 @@ distclean: clean
 	-@rm -rf $(rm-distclean)
 
 .PHONY: help distclean
-
+# 当你用 $(call call_fixdep, foo, bar) 调用这个宏时，
+# $(1) 会被替换成 foo，$(2) 会被替换成 bar
 define call_fixdep
 	@$(FIXDEP) $(1) $(2) unused > $(1).tmp
 	@mv $(1).tmp $(1)

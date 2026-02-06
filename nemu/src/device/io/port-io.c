@@ -56,7 +56,8 @@ uint32_t pio_read(ioaddr_t addr, int len) {
   return map_read(addr, len, &maps[mapid]); 
 }
 
-//当CPU代码通过端口号“写”时，会调用这个函数
+// 目前没地方用过这个
+// 当CPU代码通过端口号“写”时，可以调用这个函数
 void pio_write(ioaddr_t addr, int len, uint32_t data) {
   assert(addr + len - 1 < PORT_IO_SPACE_MAX);
   int mapid = find_mapid_by_addr(maps, nr_map, addr);

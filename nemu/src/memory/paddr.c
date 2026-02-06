@@ -26,9 +26,11 @@ static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
 //仿真器会用一个数组（比如 pmem）来模拟物理内存，这个数组的起始地址就是基地址
 
 // 两个函数本身只是做地址转换
+// paddr = 0x80000000，那么 pmem + paddr - CONFIG_MBASE = pmem + 0，指向 pmem[0]
 //  将来CPU访问内存时, 我们会将CPU将要访问的内存地址paddr映射到pmem数组中的相应偏移位置->guest_to_host()函数实现
-//  例如如果mips32的CPU打算访问内存地址(物理地址CONFIG_MBASE)0x80000000, 我们会让它最终访问pmem[0]
-uint8_t* guest_to_host(paddr_t paddr) { return pmem + paddr - CONFIG_MBASE; }
+// 得到的是指向 pmem 数组某个元素的指针，这个元素对应物理地址 paddr
+uint8_t *guest_to_host(paddr_t paddr) { return pmem + paddr - CONFIG_MBASE; } 
+
 // 把内存pmem数组的位置下标转回物理地址
 paddr_t host_to_guest(uint8_t *haddr) { return haddr - pmem + CONFIG_MBASE; }
 
@@ -40,7 +42,7 @@ static word_t pmem_read(paddr_t addr, int len) {
 static void pmem_write(paddr_t addr, int len, word_t data) {
   host_write(guest_to_host(addr), len, data);
 }
-// 非法访问，错误处理 用difftest记得把他注释了
+// 非法访问，错误处理
 static void out_of_bound(paddr_t addr) {
   printf("Physical address " FMT_PADDR " is out of bound\n", addr);
   fflush(stdout);
@@ -48,15 +50,14 @@ static void out_of_bound(paddr_t addr) {
       addr, PMEM_LEFT, PMEM_RIGHT, cpu.pc);
 }
 
-// 这个函数是模拟器/虚拟机中初始化物理内存的核心函数，通过条件编译支持不同的内存初始化策略，同时提供了内存分配和状态日志功能。
+// 初始化物理内存，支持不同的内存初始化，同时提供了内存分配和状态日志功能
 void init_mem() {
 #if   defined(CONFIG_PMEM_MALLOC)
   pmem = malloc(CONFIG_MSIZE);
   assert(pmem);
 #endif
   IFDEF(CONFIG_MEM_RANDOM, memset(pmem, rand(), CONFIG_MSIZE));
-  //就会用 memset 把 pmem 区域所有字节都填为一个随机值（rand() 的低8位）。
-  //printf("init mem done\n");
+  //memset 把 pmem 区域所有字节都填为一个随机值（rand() 的低8位）。
   Log("init mem done [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
   Log("physical memory area [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
 }
@@ -72,14 +73,7 @@ word_t paddr_read(paddr_t addr, int len) {
 void paddr_write(paddr_t addr, int len, word_t data) {
   if (likely(in_pmem(addr))) { pmem_write(addr, len, data); return; }
   IFDEF(CONFIG_DEVICE, mmio_write(addr, len, data); return);
-  // if (addr == 0xa00003f8)
-  // {
-  //   printf("paddr_read: addr=0x%08x len=%d pc=0x%08x\n", addr, len, cpu.pc);
-  //   return ;
-  // }
   //printf("paddr_write: addr=0x%08x len=%d data=0x%08x pc=0x%08x\n", addr, len, data, cpu.pc);
   fflush(stdout);
-  // #ifndef CONFIG_DEFFTEST
-    out_of_bound(addr);
-  // #endif
+  out_of_bound(addr);
 }

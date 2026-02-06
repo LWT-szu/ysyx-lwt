@@ -12,6 +12,7 @@
 #define XLEN  8
 #endif
 
+#这里为什么没有f(0)和f(2)???????他就不应该有，加了会报错
 #define REGS_LO16(f) \
       f( 1)       f( 3) f( 4) f( 5) f( 6) f( 7) f( 8) f( 9) \
 f(10) f(11) f(12) f(13) f(14) f(15)
@@ -50,6 +51,7 @@ f(30) f(31)
 
 __am_asm_trap:
   addi sp, sp, -CONTEXT_SIZE
+#“压栈”就是把当前CPU的寄存器等关键信息保存到栈上
 #把 sp 往“低地址”移动 CONTEXT_SIZE 字节
 #即一次性在栈上为异常处理“开辟” CONTEXT_SIZE(280字节) 大小的空间
 
@@ -57,7 +59,8 @@ __am_asm_trap:
 #通过 .globl 导出，供 C 代码写入 mtvec 作为 trap 的入口地址
 
   MAP(REGS, PUSH)
-
+#宏把所有通用寄存器（除了x0和sp）依次保存到刚才分配的栈空间里
+#sw x1, 4(sp)  sw x3, 12(sp) ...
   csrr t0, mcause
   csrr t1, mstatus
   csrr t2, mepc
@@ -65,6 +68,7 @@ __am_asm_trap:
   STORE t0, OFFSET_CAUSE(sp)
   STORE t1, OFFSET_STATUS(sp)
   STORE t2, OFFSET_EPC(sp)
+  #把异常号、机器状态、异常PC等特殊寄存器也保存到内存中的栈上，跟ecall不一样，ecall是保存到硬件寄存器
   #在新开的栈空间，保存异常发生时的 CPU 上下文（寄存器现场）
   #trap 汇编保存完现场后，把“现场所在地址”用mv交给后文的 __am_irq_handle
 
@@ -77,7 +81,7 @@ __am_asm_trap:
   mv a0, sp
 # 则把 sp 的值，作为第一个参数，传给 __am_irq_handle(sp) 函数
   call __am_irq_handle
- mv sp, a0 
+  mv sp, a0 
 
   LOAD t1, OFFSET_STATUS(sp)
   LOAD t2, OFFSET_EPC(sp)
@@ -87,6 +91,7 @@ __am_asm_trap:
   MAP(REGS, POP)#通用寄存器赋值,宏展开
 
   addi sp, sp, CONTEXT_SIZE
+  #恢复（弹栈）,从栈上恢复到寄存器
   mret
   #执行 mret 返回异常前的代码处
 

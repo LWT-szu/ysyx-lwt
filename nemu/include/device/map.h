@@ -42,6 +42,8 @@ static inline bool map_inside(IOMap *map, paddr_t addr) {
 }
 
 // 根据地址查找对应的IOMap映射，便于I/O访问时定位设备
+// 找到返回映射ID（0～size-1），否则返回-1，
+// size是设备数量，maps是设备映射数组，addr是要查找的地址
 static inline int find_mapid_by_addr(IOMap *maps, int size, paddr_t addr) {
   int i;
   for (i = 0; i < size; i ++) {
@@ -50,7 +52,7 @@ static inline int find_mapid_by_addr(IOMap *maps, int size, paddr_t addr) {
       return i;
     }
   }
-  return 0;
+  return -1;
 }
 
 // 为端口映射I/O和内存映射I/O分别添加映射关系

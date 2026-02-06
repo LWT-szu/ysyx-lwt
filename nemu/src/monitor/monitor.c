@@ -115,10 +115,10 @@ static int parse_args(int argc, char *argv[]) {
 void init_monitor(int argc, char *argv[]) {
   /* Perform some global initialization.初始化工作 */
   /* Parse arguments. */
-  printf("init_monitor\n");
+  //printf("init_monitor\n");
   parse_args(argc, argv);//解析命令行参数,处理传入的参数
   #ifdef CONFIG_FTRACE
-  if (elf_file) ftrace_init(elf_file);
+    if (elf_file) ftrace_init(elf_file);
   #endif
 
 

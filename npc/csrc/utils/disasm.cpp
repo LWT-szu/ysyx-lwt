@@ -52,6 +52,7 @@ void npc_disassemble(char *str, int size, uint32_t pc, uint32_t inst)
     {
         snprintf(str, size, "invalid");
         printf("npc_disassemble: 反汇编失败! count = %ld, pc=0x%08x inst=0x%08x\n", count, pc, inst);
+        return;
     }
     int ret = snprintf(str, size, "%s", insn->mnemonic);
     if (insn->op_str[0] != '\0')

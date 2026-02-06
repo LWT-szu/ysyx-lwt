@@ -37,6 +37,7 @@ __EXPORT void difftest_regcpy(void *dut, bool direction) {
   typedef struct {
     uint32_t gpr[16];
     uint32_t pc;
+    uint32_t mtvec, mepc, mstatus, mcause;
   } npc_difftest_context;
 
   npc_difftest_context *ctx = (npc_difftest_context *)dut;

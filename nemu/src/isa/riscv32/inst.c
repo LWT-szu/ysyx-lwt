@@ -11,10 +11,15 @@
 * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 *
 * See the Mulan PSL v2 for more details.
-* 指令解码与执行
-* 解码指令：从机器码中提取操作数（寄存器编号、立即数等）。
-* 执行指令：根据不同指令类型和操作数，完成指令的功能（算术、访存、异常等）。
-* 指令模板匹配：通过模式字符串和掩码系统，自动识别指令类型。
+以 addi 指令为例：一条指令的生命周期
+  1.匹配：INSTPAT 将字符串转换为掩码。如果 s->isa.inst 符合该模式。
+  2.准备环境：进入 INSTPAT_MATCH。
+  3.解码：调用 decode_operand，传入类型 TYPE_I。
+    从指令中解析 rd, rs1。
+    执行 src1R() 读取 rs1 的值到 src1。
+    执行 immI() 提取立即数到 imm。
+  4.执行：执行宏的最后一个参数代码：R(rd) = src1 + imm;。
+  5.结束：goto 跳出，完成解码。
 ***************************************************************************************/
 
 #include "local-include/reg.h"
@@ -88,8 +93,16 @@ static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_
 // 指令解码和执行
 static int decode_exec(Decode *s) {
   s->dnpc = s->snpc;
+  //保证默认顺序执行，后续遇到需要跳转的指令再覆盖 dnpc
 
 #define INSTPAT_INST(s) ((s)->isa.inst)
+/*这个宏就像一个微型的“函数环境”。当指令匹配成功时，它自动声明变量 rd, src1, src2, imm，
+并自动调用 decode_operand 把值填好，最后执行你写在 INSTPAT 最后面的具体逻辑。*/
+//... 会匹配从该位置开始的所有剩余参数
+/*该宏有四个参数：
+s - CPU状态，name - 指令名称，type - 指令类型
+... - 可变参数，匹配所有剩余的参数
+则__VA_ARGS__对应reg[rd] = src1 + src2（举例）*/
 #define INSTPAT_MATCH(s, name, type, ... /* execute body */ ) { \
   int rd = 0; \
   word_t src1 = 0, src2 = 0, imm = 0; \
@@ -188,34 +201,43 @@ static int decode_exec(Decode *s) {
 
 int isa_exec_once(Decode *s) {
   s->isa.inst = inst_fetch(&s->snpc, 4);//s->snpc每次加4
-  //printf("NEMU: pc = " FMT_WORD ", inst = 0x%08x\n", s->pc, s->isa.inst);
+
+  // 1. 关键修改：先执行解码和指令执行
+  // 这样做的原因是计算 s->dnpc (下一条指令地址/跳转目标) 的逻辑是在 decode_exec 中完成的
+  int ret_decode = decode_exec(s);
+
+  // 2. 执行完后再进行 Trace，此时 s->dnpc 才是有效的跳转目标地址
   #ifdef CONFIG_FTRACE
   uint32_t inst = s->isa.inst;
   if((inst & 0x7F) == 0x6F){
-    // jal
+    // jal 指令
+    // 此时 s->dnpc 只有在 decode_exec 执行后才会被更新为 (pc + imm)
     printf(FMT_WORD ":%*scall [%s@0x%08x]\n", s->pc, ftrace_depth * 2, "", ftrace_funcname(s->dnpc), s->dnpc);
     ftrace_depth++;
   }
   else if ((inst & 0x7F) == 0x67)
   {
+    // jalr 指令
     int rd = (inst >> 7) & 0x1f;
     int rs1 = (inst >> 15) & 0x1f;
     int imm = (int32_t)inst >> 20;
     if (rd == 0 && rs1 == 1 && imm == 0)
     {
-      // ret 指令
+      // ret 指令 (jalr x0, x1, 0)
       ftrace_depth--;
       if (ftrace_depth < 0) ftrace_depth = 0;
       printf(FMT_WORD ":%*sret  [%s]\n", s->pc, ftrace_depth * 2, "", ftrace_funcname(s->pc));
     }
     else
     {
-      // jalr
+      // 普通的 jalr 函数调用
+      // 此时 s->dnpc 已经被更新为 (src1 + imm) & ~1
       printf(FMT_WORD ":%*scall [%s@0x%08x]\n", s->dnpc, ftrace_depth * 2, "", ftrace_funcname(s->dnpc), s->dnpc);
       ftrace_depth++;
     }
   }
 #endif
 
-  return decode_exec(s);
+  // 3. 返回 decode_exec 的结果
+  return ret_decode;
 }

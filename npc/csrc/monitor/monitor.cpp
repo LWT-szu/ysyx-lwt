@@ -35,8 +35,7 @@ void init_npc_monitor(int argc, char **argv)
 // ---------------------------------------
 // 2. 内存、Difftest、反汇编初始化
 // ---------------------------------------
-#ifdef CONFIG_DIFFTEST
-    printf("\033[38;5;117mCONFIG_difftest_npc:ON\033[0m\n");
+
     size_t imge_size = pmem_init(argv[1]);
     // 复位序列
     top->rst = 1;
@@ -49,6 +48,8 @@ void init_npc_monitor(int argc, char **argv)
     }
     top->clk = 0; top->eval();
     top->rst = 0;
+#ifdef CONFIG_DIFFTEST
+    printf("\033[38;5;117mCONFIG_difftest_npc:ON\033[0m\n");
     // init_difftest(imge_size, 0);
     #ifdef CONFIG_RTT
     // 使用 MEM_SIZE (128MB) 而不是 img_size

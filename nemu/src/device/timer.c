@@ -31,7 +31,7 @@ static void rtc_io_handler(uint32_t offset, int len, bool is_write) {
   if (!is_write && offset == 4) {     // 仅在读高32位时更新时间
     uint64_t us = get_time();        // 获取当前us级时间戳
     rtc_port_base[0] = (uint32_t)us; // 低32位
-    rtc_port_base[1] = us >> 32;
+    rtc_port_base[1] = us >> 32;     // 更新寄存器中的高32位
   }
 }
 

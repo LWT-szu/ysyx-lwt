@@ -66,7 +66,7 @@ Context* __am_irq_handle(Context *c) {
     // 实现上下文的切换.这里simple_trap没有更改上下文，故没有切换上下文
     assert(c != NULL);
     // ===========================================
-    c->mstatus = 0x1800;
+    c->mstatus = 0x1800;// 0x1800 是 MIE 和 MPIE 位，表示进入 M-mode 后允许中断
   }
 
   return c; // 返回给a0去更新sp(a0为返回值寄存器)
@@ -134,7 +134,6 @@ Context *kcontext(Area kstack, void (*entry)(void *), void *arg)
   return (Context *)ctx;
 }
 
-// 主动触发异常切换（软件模拟“让出CPU”）
 void yield()
 {
   //ev.event = EVENT_YIELD;

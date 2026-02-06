@@ -46,27 +46,33 @@ static void init_keymap() {
 }
 
 #define KEY_QUEUE_LEN 1024
-static int key_queue[KEY_QUEUE_LEN] = {};
+static int key_queue[KEY_QUEUE_LEN] = {};// 环形队列存放键盘事件
 static int key_f = 0, key_r = 0;
+//key_f: 指向队首元素，即下一个要读取的键码位置
+//key_r: 队尾，指向下一个可写入键码的位置
+//用(key_f + 1) % KEY_QUEUE_LEN 
+//当 key_f 到达队列末尾时，再加1会自动回到队列开头，实现“循环”效果
 
+// 入队：向键盘事件队列中“插入”一个键盘码
 static void key_enqueue(uint32_t am_scancode) {
   key_queue[key_r] = am_scancode;
-  key_r = (key_r + 1) % KEY_QUEUE_LEN;
+  key_r = (key_r + 1) % KEY_QUEUE_LEN;// 将队尾指针后移一位
   Assert(key_r != key_f, "key queue overflow!");
 }
-// 从键盘事件队列中“弹出”一个键盘码（如果有的话），如果没有按键事件就返回NEMU_KEY_NONE
+// 出队：从键盘事件队列中“弹出”一个键盘码（如果有的话），如果没有按键事件就返回NEMU_KEY_NONE
 static uint32_t key_dequeue() {
   uint32_t key = NEMU_KEY_NONE;
-  if (key_f != key_r) {
-    key = key_queue[key_f];
-    key_f = (key_f + 1) % KEY_QUEUE_LEN;
+  if (key_f != key_r) {// 队列非空
+    key = key_queue[key_f];// 取出队首键码
+    key_f = (key_f + 1) % KEY_QUEUE_LEN;//将队首指针后移一位
   }
   return key;
 }
-
+// 在NEMU仿真状态下，从AM的键盘输入设备读取一个键码
 void send_key(uint8_t scancode, bool is_keydown) {
   if (nemu_state.state == NEMU_RUNNING && keymap[scancode] != NEMU_KEY_NONE) {
     uint32_t am_scancode = keymap[scancode] | (is_keydown ? KEYDOWN_MASK : 0);
+    //|：把键码和按下标志合成一个32位值
     key_enqueue(am_scancode);
   }
 }
@@ -84,14 +90,15 @@ static uint32_t *i8042_data_port_base = NULL;
 
 // 回调函数handler用key_dequeue()取出一个键码，写入“寄存器”内存
 static void i8042_data_io_handler(uint32_t offset, int len, bool is_write) {
-  assert(!is_write);
-  assert(offset == 0);
+  assert(!is_write);// 只能读寄存器，不能写
+  assert(offset == 0);// 只能访问偏移0处的“数据寄存器”
   i8042_data_port_base[0] = key_dequeue();
 }
 
 void init_i8042() {
+  //键盘的数据寄存器
   i8042_data_port_base = (uint32_t *)new_space(4);//分配4字节内存作为“数据寄存器”
-  i8042_data_port_base[0] = NEMU_KEY_NONE;
+  i8042_data_port_base[0] = NEMU_KEY_NONE;// 初始化寄存器为无按键状态
 #ifdef CONFIG_HAS_PORT_IO
   add_pio_map ("keyboard", CONFIG_I8042_DATA_PORT, i8042_data_port_base, 4, i8042_data_io_handler);
 #else

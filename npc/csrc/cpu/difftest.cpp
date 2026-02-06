@@ -74,38 +74,24 @@ void init_difftest(long img_size,int port){
 void difftest_step(){
     npc_CPU_state dut_state;
     reg_curr_state(&dut_state);
-    //printf("init_DUT: dut.pc = 0x%08x\n", dut_state.pc);
-    //printf("NPC: sizeof(npc_CPU_state) = %ld\n", sizeof(npc_CPU_state));
-
     static uint32_t last_skip_pc = 0;// 上一次跳过的PC地址
-
     if(is_skip_ref){
          // Current instruction is MMIO. Sync and Mark skipping.
         ref_difftest_regcpy(&dut_state, 1); // 1: DIFFTEST_TO_REF
-        last_skip_pc = dut_state.pc;
+        last_skip_pc = dut_state.pc;//npc的pc比ref的pc快，所以记录当前pc作为下一条指令的跳过标记
         is_skip_ref = false; // Reset flag
+        //printf("Difftest: 1skip ref at pc=0x%08x\n", dut_state.pc);
         return;
     }
-    
     if (last_skip_pc != 0) {
-        if (dut_state.pc == last_skip_pc) {
-             // Still at the same PC (stall?). Keep skipping.
-             ref_difftest_regcpy(&dut_state, 1); 
-             return;
-        }
-        // We moved to a new PC!
-        // Sync Ref to this new state (skipping the execution of the old PC).
+        //printf("Difftest: 2still skip ref at pc=0x%08x last_skip_pc=0x%08x\n", dut_state.pc, last_skip_pc);
         ref_difftest_regcpy(&dut_state, 1);
         last_skip_pc = 0; 
         return;
     }
-
     // 1. 让 REF 执行一条指令
-    //printf("Difftest: exec at pc=0x%08x\n", dut_state.pc);
     ref_difftest_exec(1);
-
     // 2. 从 REF 拿回寄存器
-    // npc_CPU_state ref_state;
     ref_difftest_regcpy(&ref_state, 0); // 0: DIFFTEST_TO_DUT
     
     // 3. 比较：所有寄存器和PC

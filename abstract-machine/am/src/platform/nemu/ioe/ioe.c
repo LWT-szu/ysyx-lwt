@@ -51,6 +51,7 @@ static void *lut[128] = {
   [AM_GPU_FBDRAW  ] = __am_gpu_fbdraw,
   [AM_GPU_STATUS  ] = __am_gpu_status,
   [AM_UART_CONFIG ] = __am_uart_config,
+  
   [AM_AUDIO_CONFIG] = __am_audio_config,
   [AM_AUDIO_CTRL  ] = __am_audio_ctrl,
   [AM_AUDIO_STATUS] = __am_audio_status,
@@ -77,8 +78,20 @@ bool ioe_init() {
 /*IOE层的统一设备访问接口——它们都会通过 lut[reg] 找到对应的设备处理函数，
 然后把 buf 传进去，完成设备的读/写操作*/
 
+//  两个函数都是通过抽象寄存器的编号索引到一个处理函数, 
+//  然后调用它. 处理函数的具体功能和寄存器编号相关
+
+//  这里的reg寄存器并不是上文讨论的设备寄存器, 
+//  因为设备寄存器的编号是架构相关的，这个reg其实是一个【功能编号】, 
+//  我们约定在不同的架构中, 同一个功能编号的含义也是相同的
+
 // 统一的设备读入口：通过抽象寄存器编号和数据缓冲区访问设备
+// 从编号为reg的寄存器中读出内容到缓冲区buf中
 void ioe_read (int reg, void *buf) { ((handler_t)lut[reg])(buf); }
 
 // 统一的设备写入口
+// 向编号为reg的寄存器写入缓冲区buf中的内容
 void ioe_write(int reg, void *buf) { ((handler_t)lut[reg])(buf); }
+
+//klib中提供了io_read()和io_write()这两个宏, 
+//它们分别对ioe_read()和ioe_write()这两个API进行了进一步的封装
